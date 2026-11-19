@@ -34,3 +34,16 @@ Centralizar la gestión comercial de instituciones, contactos, oportunidades, ac
 
 ## Estado
 Este paquete es una base funcional y técnica inicial. Las reglas comerciales específicas, tarifas, territorios, comisiones y pipelines deberán parametrizarse con datos reales antes de producción.
+
+## Desarrollo local (Windows PowerShell)
+Requisitos: Node.js 22+, Docker Desktop (para Supabase local) y Git.
+
+```powershell
+npm install
+Copy-Item .env.example .env.local
+npx supabase start        # imprime la URL y la anon key; cópialas a .env.local
+npx supabase db reset     # aplica migraciones y seed
+npm run dev               # http://localhost:3000
+```
+
+Controles antes de cada entrega: `npm run check` (lint + typecheck + pruebas).
