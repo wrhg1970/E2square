@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { signOut } from "@/modules/auth/actions";
 import { navItems } from "./nav-items";
 
-export function Sidebar() {
+export function Sidebar({ userName }: { userName: string }) {
   const pathname = usePathname();
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border bg-muted/40 md:block">
+    <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-muted/40 md:flex">
       <div className="px-5 py-5 text-lg font-semibold tracking-tight">E2Square</div>
       <nav aria-label="Principal" className="flex flex-col gap-1 px-3">
         {navItems.map(({ href, label, icon: Icon, ready }) =>
@@ -34,6 +35,14 @@ export function Sidebar() {
           ),
         )}
       </nav>
+      <div className="mt-auto border-t border-border px-5 py-4 text-sm">
+        <p className="truncate font-medium">{userName}</p>
+        <form action={signOut}>
+          <button type="submit" className="mt-1 text-muted-foreground underline hover:text-foreground">
+            Cerrar sesión
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

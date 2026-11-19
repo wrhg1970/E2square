@@ -47,3 +47,18 @@ npm run dev               # http://localhost:3000
 ```
 
 Controles antes de cada entrega: `npm run check` (lint + typecheck + pruebas).
+
+## Primer administrador (proyecto de Supabase remoto)
+1. `npx supabase db push` para aplicar las migraciones.
+2. En el SQL Editor de Supabase ejecuta una sola vez (con tu correo):
+   ```sql
+   select public.bootstrap_organization('E2Square', 'e2square', 'tu-correo@dominio.com');
+   ```
+3. En Authentication > Users usa **Add user > Create new user** con ese mismo correo, una contraseña temporal y *Auto Confirm User* activado. Después entra a la app, usa **¿Olvidaste tu contraseña?** y define tu contraseña definitiva. Quedas como Administrador.
+4. En Authentication > Sign In / Providers desactiva **Allow new users to sign up** (solo se entra por invitación).
+5. En Authentication > URL Configuration agrega `http://localhost:3000/auth/callback` (y la URL de producción cuando exista) a Redirect URLs.
+
+Los siguientes usuarios: regístralos en Administración > Invitaciones con su rol, créalos en Supabase igual que en el paso 3 y pídeles que definan su contraseña con **¿Olvidaste tu contraseña?**.
+
+## Pruebas de base de datos
+`npx supabase test db` corre las pruebas pgTAP de `supabase/tests` (aislamiento entre organizaciones, permisos y auditoría).
