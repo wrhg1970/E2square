@@ -8,5 +8,5 @@ export const navItems = [
   { href: "/oportunidades", label: "Oportunidades", icon: Briefcase, ready: false },
   { href: "/productos", label: "Productos", icon: Package, ready: false },
   { href: "/mi-dia", label: "Mi día", icon: CalendarCheck, ready: false },
-  { href: "/administracion", label: "Administración", icon: Settings, ready: false },
+  { href: "/administracion", label: "Administración", icon: Settings, ready: true },
 ] as const;
