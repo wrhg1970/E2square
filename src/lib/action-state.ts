@@ -1,4 +1,4 @@
-export type ActionState = { error?: string; success?: string } | null;
+export type ActionState = { error?: string; success?: string; details?: string[] } | null;
 
 // Traduce errores de Postgres/Supabase a mensajes para el usuario sin filtrar detalles internos.
 export function dbErrorMessage(error: { code?: string } | null): string {
