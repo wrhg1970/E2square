@@ -1,0 +1,60 @@
+# Modelo de datos — base inicial
+
+## Convenciones
+UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; soft delete solo donde la retención lo permita; auditoría append-only para eventos críticos. Importes como `numeric(18,4)` y códigos ISO de moneda.
+
+## Tablas principales (resumen)
+- organizations(id, name, slug, default_locale, default_currency)
+- companies(id, organization_id, legal_name, tax_id, country_code, status)
+- business_units(id, organization_id, company_id, name, status)
+- offices(id, organization_id, company_id, business_unit_id, name, country_code, timezone)
+- territories(id, organization_id, name, parent_id)
+- profiles(id, auth_user_id, organization_id, full_name, locale, timezone, status)
+- roles(id, organization_id, name)
+- permissions(id, key, description)
+- role_permissions(role_id, permission_id)
+- user_scopes(id, profile_id, scope_type, scope_id)
+- institutions(id, organization_id, parent_institution_id, name, legal_name, institution_type, website, country_code, region, city, address, owner_id, office_id, territory_id, source, status, potential_score)
+- institution_branches(id, institution_id, name, address, city, country_code)
+- contacts(id, organization_id, first_name, last_name, email, phone, preferred_language, consent_status)
+- institution_contacts(id, institution_id, contact_id, job_title, department, decision_role, is_primary)
+- products(id, organization_id, company_id, business_unit_id, code, name, description, revenue_model, default_pipeline_id, active)
+- price_books(id, product_id, name, currency_code, valid_from, valid_to, version)
+- price_book_items(id, price_book_id, unit_price, unit_cost, unit_name)
+- pipelines(id, organization_id, name, product_id, business_unit_id, active)
+- pipeline_stages(id, pipeline_id, name, sort_order, default_probability, required_fields, is_won, is_lost)
+- opportunities(id, organization_id, company_id, business_unit_id, institution_id, pipeline_id, stage_id, name, owner_id, currency_code, probability, expected_close_date, status, source_campaign_id, loss_reason)
+- opportunity_items(id, opportunity_id, product_id, description, quantity, unit_price, discount, unit_cost, currency_code)
+- opportunity_stage_history(id, opportunity_id, from_stage_id, to_stage_id, changed_by, changed_at, note)
+- activities(id, organization_id, institution_id, contact_id, opportunity_id, activity_type, subject, owner_id, due_at, timezone, status, outcome, notes)
+- tasks(id, activity_id, priority, completed_at, reminder_at)
+- campaigns(id, organization_id, name, campaign_type, product_id, start_at, end_at, budget_amount, currency_code, owner_id, status)
+- campaign_members(id, campaign_id, institution_id, contact_id, status, consent_basis)
+- communications(id, organization_id, channel, provider_message_id, contact_id, institution_id, opportunity_id, direction, subject, body_excerpt, sent_at, status)
+- documents(id, organization_id, storage_path, file_name, mime_type, size_bytes, institution_id, opportunity_id, product_id, campaign_id, uploaded_by, version)
+- targets(id, organization_id, scope_type, scope_id, metric, period_start, period_end, target_value, currency_code)
+- commission_plans(id, organization_id, name, version, effective_from, effective_to, rules_json, status)
+- commission_entries(id, opportunity_id, beneficiary_user_id, gross_amount, currency_code, status, approved_by, paid_at)
+- exchange_rates(id, base_currency, quote_currency, rate, effective_at, source)
+- automation_rules(id, organization_id, name, trigger_type, conditions_json, actions_json, enabled)
+- automation_runs(id, rule_id, entity_type, entity_id, idempotency_key, status, result_json, executed_at)
+- audit_logs(id, organization_id, actor_id, entity_type, entity_id, action, before_json, after_json, created_at)
+- integration_connections(id, organization_id, provider, account_label, scopes, status, token_reference, last_sync_at)
+- integration_sync_logs(id, connection_id, operation, status, cursor, error_code, occurred_at)
+
+## Relaciones clave
+- Organization 1:N companies, profiles, institutions, products, pipelines, campaigns.
+- Institution 1:N branches; Institution N:M contacts.
+- Institution 1:N opportunities.
+- Opportunity 1:N opportunity_items, activities, stage_history.
+- Product 1:N price books and pipelines (configurable).
+- Campaign N:M institutions/contacts via campaign_members.
+- User N:M scopes and roles.
+
+## Reglas
+- Unique parcial para producto code por organización/empresa según política.
+- Evitar duplicados de institución con índices auxiliares normalizados; fuzzy match en aplicación.
+- Toda línea de oportunidad conserva precio/costo acordado como snapshot; cambios posteriores al catálogo no alteran ventas históricas.
+- Commission plan se versiona; cada comisión conserva la regla aplicada.
+- Nunca almacenar access tokens OAuth en texto plano. Usar secretos cifrados/servicio seguro.
+- Los importes consolidados deben conservar original y tipo de cambio aplicado.

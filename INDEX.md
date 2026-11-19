@@ -1,0 +1,16 @@
+# Índice de documentación
+
+- [README](README.md)
+- [Instrucciones Claude Code](CLAUDE.md)
+- [PRD funcional](PRD.md)
+- [Arquitectura](ARCHITECTURE.md)
+- [Modelo de datos](DATABASE.md)
+- [Seguridad](SECURITY.md)
+- [API e integraciones](API_SPEC.md)
+- [UX/UI](UX_SPEC.md)
+- [Automatizaciones](AUTOMATIONS.md)
+- [AI Sales Copilot](AI_SPEC.md)
+- [Metas y comisiones](COMMISSIONS.md)
+- [Backlog](BACKLOG.md)
+- [Roadmap](ROADMAP.md)
+- [Testing](TESTING.md)
