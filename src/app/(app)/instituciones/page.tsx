@@ -17,7 +17,7 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
   const supabase = await createClient();
   let query = supabase
     .from("institutions")
-    .select("id, name, institution_type, status, potential, city, country_code, owner_id", { count: "exact" })
+    .select("id, name, institution_type, status, potential, city, country_code, owner_id, last_activity_at, next_activity_at", { count: "exact" })
     .order("name")
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   if (q) query = query.or(`name.ilike.%${q}%,legal_name.ilike.%${q}%,city.ilike.%${q}%`);
@@ -64,7 +64,7 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
             <table className="w-full text-left text-sm">
               <thead className="text-muted-foreground">
                 <tr>
-                  {["Nombre", "Tipo", "Estatus", "Potencial", "Ciudad", "Responsable"].map((h) => (
+                  {["Nombre", "Tipo", "Estatus", "Potencial", "Ciudad", "Responsable", "Próxima actividad"].map((h) => (
                     <th key={h} className="py-2 pr-4 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -78,6 +78,9 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
                       <td className="py-2 pr-4">{i.potential ? potentials[i.potential as keyof typeof potentials] : "—"}</td>
                       <td className="py-2 pr-4">{[i.city, i.country_code].filter(Boolean).join(", ")}</td>
                       <td className="py-2 pr-4">{(i.owner_id && ownerName.get(i.owner_id)) || "—"}</td>
+                      <td className={`py-2 pr-4 ${i.next_activity_at && new Date(i.next_activity_at) < new Date() ? "text-red-700" : ""}`}>
+                        {i.next_activity_at ? new Date(i.next_activity_at).toLocaleDateString("es-MX", { day: "numeric", month: "short" }) : "—"}
+                      </td>
                     </tr>
                 ))}
               </tbody>
