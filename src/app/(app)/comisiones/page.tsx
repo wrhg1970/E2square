@@ -50,7 +50,7 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
 
   return (
     <div className="max-w-6xl space-y-8">
-      <div>
+      <div className="on-band page-header">
         <h1 className="text-2xl font-semibold tracking-tight">Comisiones</h1>
         <p className="text-sm text-muted-foreground">
           Se generan al ganar una oportunidad, por cada producto con porcentaje asignado al agente. Las aprueba el director o su superior; nadie aprueba la suya.

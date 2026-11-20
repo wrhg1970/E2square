@@ -15,7 +15,7 @@ export default async function NewOpportunityPage({ searchParams }: PageProps<"/o
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Nueva oportunidad</h1>
+      <h1 className="on-band page-header text-2xl font-semibold tracking-tight">Nueva oportunidad</h1>
       {!insts?.length ? (
         <p className="text-sm text-muted-foreground">Primero registra una institución.</p>
       ) : (

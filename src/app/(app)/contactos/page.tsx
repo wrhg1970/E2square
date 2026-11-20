@@ -21,7 +21,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
 
   return (
     <div className="max-w-5xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Contactos</h1>
+      <h1 className="on-band page-header text-2xl font-semibold tracking-tight">Contactos</h1>
       <form role="search" className="flex max-w-md items-end gap-3">
         <Field label="Buscar" name="q" defaultValue={q} placeholder="Nombre o correo" className="flex-1" />
         <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Buscar</button>

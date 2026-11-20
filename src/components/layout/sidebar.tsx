@@ -17,12 +17,12 @@ function NavLinks({ alerts }: { alerts: number }) {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted", active && "bg-muted font-medium")}
+            className={cn("nav-link flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground", active && "bg-muted font-semibold text-foreground")}
           >
             <Icon className="size-4" aria-hidden />
             {label}
             {href === "/mi-dia" && alerts > 0 && (
-              <span className="ml-auto rounded-full bg-red-700 px-2 text-xs font-medium text-white" aria-label={`${alerts} pendientes para hoy o vencidas`}>
+              <span className="ml-auto rounded-full bg-amber-400 px-2 text-xs font-semibold text-black" aria-label={`${alerts} pendientes para hoy o vencidas`}>
                 {alerts}
               </span>
             )}
@@ -50,7 +50,7 @@ function Account({ userName }: { userName: string }) {
 export function Sidebar({ userName, alerts = 0 }: { userName: string; alerts?: number }) {
   return (
     <>
-      <details className="border-b border-border bg-muted/40 md:hidden">
+      <details className="on-band border-b border-border bg-band md:hidden">
         <summary className="flex cursor-pointer items-center justify-between px-5 py-3 font-semibold">
           E2Square
           <span className="text-sm font-normal text-muted-foreground">Menú{alerts > 0 ? ` · ${alerts} pendientes` : ""}</span>
@@ -60,8 +60,11 @@ export function Sidebar({ userName, alerts = 0 }: { userName: string; alerts?: n
           <Account userName={userName} />
         </div>
       </details>
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-muted/40 md:flex">
-        <div className="px-5 py-5 text-lg font-semibold tracking-tight">E2Square</div>
+      <aside className="on-band hidden w-60 shrink-0 flex-col bg-band md:flex">
+        <div className="flex items-center gap-2.5 px-5 py-5 text-lg font-bold tracking-tight">
+          <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-primary text-xs font-extrabold text-primary-foreground">E2</span>
+          E2Square
+        </div>
         <NavLinks alerts={alerts} />
         <div className="mt-auto"><Account userName={userName} /></div>
       </aside>

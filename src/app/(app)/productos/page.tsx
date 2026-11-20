@@ -15,7 +15,7 @@ export default async function ProductsPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Productos</h1>
+      <h1 className="on-band page-header text-2xl font-semibold tracking-tight">Productos</h1>
       {error ? (
         <p role="alert" className="text-sm text-red-700">No se pudo cargar el catálogo. Recarga la página.</p>
       ) : !products?.length ? (
@@ -24,7 +24,7 @@ export default async function ProductsPage() {
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((p) => (
             <li key={p.id}>
-              <Link href={`/productos/${p.id}`} className="block rounded-xl border border-border p-4 hover:bg-muted">
+              <Link href={`/productos/${p.id}`} className="block rounded-xl border border-border bg-background shadow-sm p-4 hover:bg-muted">
                 <p className="text-xs text-muted-foreground">{p.code}{p.active ? "" : " · Inactivo"}</p>
                 <p className="font-semibold">{p.name}</p>
                 <p className="text-sm text-muted-foreground">
@@ -36,7 +36,7 @@ export default async function ProductsPage() {
         </ul>
       )}
       {canManage && (
-        <details className="rounded-xl border border-border p-4">
+        <details className="rounded-xl border border-border bg-background shadow-sm p-4">
           <summary className="cursor-pointer text-sm font-medium">Agregar producto</summary>
           <ActionForm action={createProduct} submitLabel="Crear producto" className="mt-3 grid gap-3 sm:grid-cols-3 sm:items-end">
             <Field label="Clave" name="code" placeholder="TOEFL" required />
