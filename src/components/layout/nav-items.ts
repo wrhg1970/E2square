@@ -1,4 +1,4 @@
-import { Briefcase, Building2, CalendarCheck, Home, Package, Settings, Users } from "lucide-react";
+import { Briefcase, Building2, CalendarCheck, Home, Package, Settings, Target, Users } from "lucide-react";
 
 // Solo módulos del MVP de enero 2027. `ready` se activa al terminar cada fase.
 export const navItems = [
@@ -8,5 +8,6 @@ export const navItems = [
   { href: "/oportunidades", label: "Oportunidades", icon: Briefcase, ready: true },
   { href: "/productos", label: "Productos", icon: Package, ready: true },
   { href: "/mi-dia", label: "Mi día", icon: CalendarCheck, ready: true },
+  { href: "/metas", label: "Metas", icon: Target, ready: true },
   { href: "/administracion", label: "Administración", icon: Settings, ready: true },
 ] as const;

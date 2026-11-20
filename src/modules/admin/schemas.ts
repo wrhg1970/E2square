@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CURRENCIES } from "@/modules/catalog/labels";
 
 const name = z.string().trim().min(2, "El nombre es muy corto").max(200);
 const countryCode = z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Usa el código de país de 2 letras (MX, CO, US…)");
@@ -27,3 +28,12 @@ export const invitationSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email("Correo no válido")),
   role_id: z.uuid("Elige un rol"),
 });
+
+export const exchangeRateSchema = z
+  .object({
+    base_currency: z.enum(CURRENCIES, "Elige la moneda base"),
+    quote_currency: z.enum(CURRENCIES, "Elige la moneda destino"),
+    rate: z.coerce.number().positive("La tasa debe ser mayor a 0"),
+    effective_at: z.iso.date("Fecha no válida"),
+  })
+  .refine((r) => r.base_currency !== r.quote_currency, "Elige dos monedas distintas");
