@@ -1,5 +1,7 @@
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField, TextareaField } from "@/components/ui/field";
+import { addActivityToCalendar } from "@/modules/google/actions";
+import { googleEnv } from "@/modules/google/config";
 import { toOptions } from "@/modules/institutions/labels";
 import { cancelActivity, completeActivity, createActivity } from "./actions";
 import { activityTypes, priorities } from "./labels";
@@ -8,9 +10,10 @@ import { formatDateTime } from "./time";
 export type ActivityRow = {
   id: string; activity_type: string; subject: string; status: string; due_at: string | null; completed_at: string | null;
   outcome: string | null; notes: string | null; priority: string; owner_id: string; institution_id: string | null; opportunity_id: string | null;
+  google_event_id: string | null;
 };
 
-export const ACTIVITY_COLUMNS = "id, activity_type, subject, status, due_at, completed_at, outcome, notes, priority, owner_id, institution_id, opportunity_id";
+export const ACTIVITY_COLUMNS = "id, activity_type, subject, status, due_at, completed_at, outcome, notes, priority, owner_id, institution_id, opportunity_id, google_event_id";
 
 // Formulario para cerrar una actividad, con la opción de programar la siguiente.
 export function CompleteForm({ id }: { id: string }) {
@@ -43,12 +46,18 @@ export function ActivityItem({ a, timeZone, people, canAct, context }: { a: Acti
       </p>
       {a.outcome && <p>Resultado: {a.outcome}</p>}
       {a.notes && <p className="whitespace-pre-line text-muted-foreground">{a.notes}</p>}
+      {a.google_event_id && <p className="text-xs text-muted-foreground">En Google Calendar</p>}
       {canAct && a.status === "pending" && (
         <div className="flex flex-wrap items-start gap-4">
           <CompleteForm id={a.id} />
           <form action={cancelActivity.bind(null, a.id)}>
             <button type="submit" className="text-xs text-muted-foreground underline">Cancelar</button>
           </form>
+          {a.due_at && !a.google_event_id && googleEnv() && (
+            <ActionForm action={addActivityToCalendar.bind(null, a.id)} submitLabel="Agregar a Google Calendar" className="text-xs">
+              {null}
+            </ActionForm>
+          )}
         </div>
       )}
     </li>

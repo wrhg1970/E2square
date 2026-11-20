@@ -7,7 +7,7 @@ import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVITY_COLUMNS, ActivityItem, NewActivityForm, type ActivityRow } from "@/modules/activities/activity-panel";
-import { daysAgo } from "@/modules/activities/time";
+import { daysAgo, formatDateTime } from "@/modules/activities/time";
 import { addBranch, addContact, updateInstitution } from "@/modules/institutions/actions";
 import { InstitutionFields, loadInstitutionOptions } from "@/modules/institutions/institution-fields";
 import { formatMoney, opportunityStatuses, totalsByCurrency } from "@/modules/opportunities/labels";
@@ -67,9 +67,11 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("institution_id", id).order("due_at", { ascending: false }).limit(100),
     supabase.rpc("current_profile_id"),
   ]);
-  const [{ data: me }, { data: canAudit }] = await Promise.all([
+  const [{ data: me }, { data: canAudit }, { data: mails }] = await Promise.all([
     supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
     supabase.rpc("has_permission", { permission: "audit.read" }),
+    supabase.from("communications").select("id, direction, subject, snippet, from_email, sent_at").eq("institution_id", id)
+      .order("sent_at", { ascending: false }).limit(20),
   ]);
   const tz = me?.timezone ?? "America/Mexico_City";
   const activities = (acts.data ?? []) as ActivityRow[];
@@ -277,6 +279,22 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
           <p className="whitespace-pre-line text-sm">{inst.notes}</p>
         </Card>
       )}
+
+      <Card title="Correos">
+        {(mails ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin correos registrados. Cada usuario los trae desde Integraciones al conectar su Gmail.</p>
+        ) : (
+          <ul className="divide-y divide-border text-sm">
+            {(mails ?? []).map((m) => (
+              <li key={m.id} className="space-y-0.5 py-2 first:pt-0">
+                <p className="font-medium">{m.direction === "outbound" ? "Enviado" : "Recibido"}: {m.subject || "(sin asunto)"}</p>
+                <p className="text-muted-foreground">{formatDateTime(m.sent_at, tz)} · {m.from_email}</p>
+                {m.snippet && <p className="line-clamp-2 text-muted-foreground">{m.snippet}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card title="Documentos">
         <DocumentsPanel institutionId={id} canWrite={Boolean(canWrite)} />
