@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
+import { signInErrorMessage } from "./errors";
 import { newPasswordSchema, resetRequestSchema, signInSchema } from "./schemas";
 
 export async function signIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -11,7 +12,7 @@ export async function signIn(_prev: ActionState, formData: FormData): Promise<Ac
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { error: "Correo o contraseña incorrectos." };
+  if (error) return { error: signInErrorMessage(error) };
   redirect("/");
 }
 

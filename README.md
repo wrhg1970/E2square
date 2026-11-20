@@ -67,4 +67,13 @@ Controles antes de cada entrega: `npm run check` (lint + typecheck + pruebas).
 Los siguientes usuarios: regístralos en Administración > Invitaciones con su rol, créalos en Supabase igual que en el paso 3 y pídeles que definan su contraseña con **¿Olvidaste tu contraseña?**.
 
 ## Pruebas de base de datos
+Pruebas E2E en navegador (Playwright) contra Supabase **local**, nunca contra el remoto:
+```powershell
+npx supabase start; npx supabase db reset
+npx playwright install chromium        # solo la primera vez
+$env:SUPABASE_SERVICE_ROLE_KEY = "<service_role de npx supabase status>"
+npm run e2e
+```
+Recorren login, alta de institución con contacto, aviso de duplicados, oportunidad con productos, actividad, cierre ganado, dashboard, exportación CSV y cierre de sesión. Tu `.env.local` debe apuntar al Supabase local mientras corren.
+
 `npx supabase test db` corre las pruebas pgTAP de `supabase/tests` (aislamiento entre organizaciones, permisos y auditoría).
