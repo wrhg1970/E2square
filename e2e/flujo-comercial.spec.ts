@@ -111,6 +111,17 @@ test("en celular el menú lleva a Mi día", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Mi día" })).toBeVisible();
 });
 
+test("administra ámbitos y no permite auto-bloquearse", async ({ page }) => {
+  await page.goto("/administracion");
+  await page.getByRole("row", { name: new RegExp(E2E_USER.email) }).getByRole("link").click();
+  await expect(page.getByText("No puedes desactivar tu propio usuario.")).toBeVisible();
+  await page.getByLabel("Ámbito").selectOption({ label: "Toda la organización: E2Square" });
+  await page.getByRole("button", { name: "Agregar ámbito" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Toda la organización: E2Square" })).toBeVisible();
+  await page.getByRole("listitem").filter({ hasText: "Toda la organización: E2Square" }).getByRole("button", { name: "Quitar" }).click();
+  await expect(page.getByText("Solo su propia cartera.")).toBeVisible();
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
@@ -156,7 +157,7 @@ export default async function AdminPage() {
         <Table
           headers={["Nombre", "Correo", "Roles", "Estado"]}
           rows={(profiles.data ?? []).map((p) => [
-            p.full_name || "—",
+            <Link key={p.id} href={`/administracion/usuarios/${p.id}`} className="underline">{p.full_name || "—"}</Link>,
             p.email,
             (profileRoles.data ?? []).filter((pr) => pr.profile_id === p.id).map((pr) => roleName.get(pr.role_id)).join(", ") || "—",
             p.status === "active" ? "Activo" : "Inactivo",
