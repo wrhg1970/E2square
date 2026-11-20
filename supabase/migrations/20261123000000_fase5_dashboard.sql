@@ -92,6 +92,13 @@ create table public.goals (
 );
 
 -- ============ Métricas ============
+-- Día calendario en la zona del usuario: una venta cerrada a las 19:00 en CDMX cuenta ese día, no el siguiente (UTC).
+create or replace function public.local_date(ts timestamptz)
+returns date language sql stable set search_path = '' as $$
+  select (ts at time zone coalesce(
+    (select timezone from public.profiles where id = public.current_profile_id()), 'America/Mexico_City'))::date
+$$;
+
 -- Oportunidades visibles con su producto principal (el de su pipeline) y su oficina (la de la institución).
 create or replace view public.opportunity_facts with (security_invoker = true) as
 select o.id, o.organization_id, o.name, o.institution_id, o.owner_id, o.status, o.currency_code, o.amount, o.cost, o.margin, o.probability,
@@ -109,14 +116,14 @@ returns jsonb language sql stable security invoker set search_path = '' as $$
   with cur as (select reporting_currency as c from public.organizations where id = public.current_org_id()),
   f as (
     select f.*,
-      public.convert_amount(f.amount, f.currency_code, cur.c, coalesce(f.closed_at::date, current_date)) as amount_r,
-      public.convert_amount(f.margin, f.currency_code, cur.c, coalesce(f.closed_at::date, current_date)) as margin_r
+      public.convert_amount(f.amount, f.currency_code, cur.c, coalesce(public.local_date(f.closed_at), current_date)) as amount_r,
+      public.convert_amount(f.margin, f.currency_code, cur.c, coalesce(public.local_date(f.closed_at), current_date)) as margin_r
     from public.opportunity_facts f, cur
     where (p_owner is null or f.owner_id = p_owner)
       and (p_office is null or f.office_id = p_office)
       and (p_product is null or f.product_id = p_product)
   ),
-  closed as (select * from f where status in ('won', 'lost') and closed_at::date between p_from and p_to),
+  closed as (select * from f where status in ('won', 'lost') and public.local_date(closed_at) between p_from and p_to),
   open as (select * from f where status = 'open'),
   st as (select id, sla_days from public.pipeline_stages)
   select jsonb_build_object(
@@ -134,14 +141,14 @@ returns jsonb language sql stable security invoker set search_path = '' as $$
     'stalled_count', (select count(*) from open o join st on st.id = o.stage_id where st.sla_days is not null and o.stage_entered_at < now() - make_interval(days => st.sla_days)),
     'unconverted', (select count(*) from f where amount_r is null and amount <> 0),
     'new_institutions', (select count(*) from public.institutions i
-                          where i.created_at::date between p_from and p_to
+                          where public.local_date(i.created_at) between p_from and p_to
                             and (p_owner is null or i.owner_id = p_owner) and (p_office is null or i.office_id = p_office)),
     'activities_done', (select count(*) from public.activities a
-                         where a.status = 'done' and a.completed_at::date between p_from and p_to
+                         where a.status = 'done' and public.local_date(a.completed_at) between p_from and p_to
                            and (p_owner is null or a.owner_id = p_owner)),
     'by_product', coalesce((
       select jsonb_agg(x order by x.won desc) from (
-        select p.name, sum(amount_r) filter (where status = 'won' and closed_at::date between p_from and p_to) as won,
+        select p.name, sum(amount_r) filter (where status = 'won' and public.local_date(closed_at) between p_from and p_to) as won,
                sum(amount_r) filter (where status = 'open') as open, count(*) filter (where status = 'open') as open_count
         from f join public.products p on p.id = f.product_id group by p.name
       ) x), '[]'::jsonb),
@@ -158,7 +165,7 @@ language sql stable security invoker set search_path = '' as $$
      from public.opportunity_stage_history h
      join public.opportunities o on o.id = h.opportunity_id
      join public.pipeline_stages hs on hs.id = h.to_stage_id
-     where o.pipeline_id = p_pipeline and o.created_at::date between p_from and p_to
+     where o.pipeline_id = p_pipeline and public.local_date(o.created_at) between p_from and p_to
        and (p_owner is null or o.owner_id = p_owner)
        and (case when s.is_lost then hs.id = s.id else hs.sort_order >= s.sort_order and not hs.is_lost end))
   from public.pipeline_stages s
@@ -177,10 +184,10 @@ language sql stable security invoker set search_path = '' as $$
       when 'margin' then w.margin
       when 'units' then w.units
       when 'new_institutions' then (select count(*) from public.institutions i
-        where i.created_at::date between g.period_start and g.period_end
+        where public.local_date(i.created_at) between g.period_start and g.period_end
           and (g.owner_id is null or i.owner_id = g.owner_id) and (g.office_id is null or i.office_id = g.office_id))
       when 'activities' then (select count(*) from public.activities a
-        where a.status = 'done' and a.completed_at::date between g.period_start and g.period_end
+        where a.status = 'done' and public.local_date(a.completed_at) between g.period_start and g.period_end
           and (g.owner_id is null or a.owner_id = g.owner_id))
     end,
     case when g.metric in ('revenue', 'margin') then w.unconverted else 0 end
@@ -190,10 +197,10 @@ language sql stable security invoker set search_path = '' as $$
            count(*) filter (where c.amount_g is null) as unconverted
     from (
       select f.units,
-        public.convert_amount(f.amount, f.currency_code, g.currency_code, f.closed_at::date) as amount_g,
-        public.convert_amount(f.margin, f.currency_code, g.currency_code, f.closed_at::date) as margin_g
+        public.convert_amount(f.amount, f.currency_code, g.currency_code, public.local_date(f.closed_at)) as amount_g,
+        public.convert_amount(f.margin, f.currency_code, g.currency_code, public.local_date(f.closed_at)) as margin_g
       from public.opportunity_facts f
-      where f.status = 'won' and f.closed_at::date between g.period_start and g.period_end
+      where f.status = 'won' and public.local_date(f.closed_at) between g.period_start and g.period_end
         and (g.owner_id is null or f.owner_id = g.owner_id)
         and (g.office_id is null or f.office_id = g.office_id)
         and (g.product_id is null or f.product_id = g.product_id)

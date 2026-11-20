@@ -1,7 +1,7 @@
 -- Pruebas de dashboard, conversión de moneda, metas y exportación auditada (Fase 5).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 insert into public.invitations (organization_id, email, role_id)
@@ -46,6 +46,7 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002
 select pg_temp.sell('Colegio Tres', 'MXN', 5, 4000, 0, true);   -- ganada: 20,000 MXN = 1000 USD
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select is(public.local_date('2026-11-20 01:04+00'), '2026-11-19'::date, 'una venta de las 19:04 en CDMX cuenta el mismo día local');
 create temp table m as select public.dashboard_metrics(current_date - 30, current_date) as j;
 select is((select (j->>'won_amount')::numeric from m), 1000::numeric, 'el vendedor solo suma sus ventas ganadas');
 select is((select (j->>'won_units')::numeric from m), 10::numeric, 'cuenta unidades vendidas');
