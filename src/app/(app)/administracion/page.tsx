@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
-import { addExchangeRate, saveAutomation, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
+import { scoreFactors } from "@/modules/institutions/scoring";
+import { addExchangeRate, saveAutomation, updateScoreWeights, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
 import { automationRules } from "@/modules/admin/schemas";
 import { CURRENCIES } from "@/modules/catalog/labels";
 
@@ -48,7 +49,7 @@ export default async function AdminPage() {
     supabase.from("invitations").select("id, email, role_id, accepted_at").order("created_at", { ascending: false }),
     supabase.rpc("has_permission", { permission: "admin.structure" }),
     supabase.rpc("has_permission", { permission: "admin.users" }),
-    supabase.from("organizations").select("require_next_activity, reporting_currency").maybeSingle(),
+    supabase.from("organizations").select("require_next_activity, reporting_currency, score_weights").maybeSingle(),
     supabase.from("exchange_rates").select("id, base_currency, quote_currency, rate, effective_at").order("effective_at", { ascending: false }).limit(50),
     supabase.from("automation_rules").select("key, enabled, days"),
   ]);
@@ -57,6 +58,7 @@ export default async function AdminPage() {
     return <p role="alert" className="text-sm text-red-700">No se pudo cargar la administración. Recarga la página.</p>;
   }
 
+  const weights = (org.data?.score_weights ?? {}) as Record<string, number>;
   const companyName = new Map((companies.data ?? []).map((c) => [c.id, c.legal_name]));
   const unitName = new Map((units.data ?? []).map((u) => [u.id, u.name]));
   const roleName = new Map((roles.data ?? []).map((r) => [r.id, r.name]));
@@ -79,6 +81,20 @@ export default async function AdminPage() {
             </label>
             <SelectField label="Moneda de reporte (dashboard y metas)" name="reporting_currency" defaultValue={org.data.reporting_currency}
               options={currencyOptions} className="max-w-xs" />
+          </ActionForm>
+        </Section>
+      )}
+
+      {canStructure.data && org.data && (
+        <Section title="Puntaje de instituciones">
+          <p className="text-sm text-muted-foreground">
+            Peso de cada factor (0 a 100). El puntaje es el promedio ponderado, de 0 a 100, y cada ficha muestra cómo se calculó.
+          </p>
+          <ActionForm action={updateScoreWeights} submitLabel="Guardar pesos" className="grid gap-3 sm:grid-cols-4 sm:items-end">
+            {Object.entries(scoreFactors).map(([key, label]) => (
+              <Field key={key} label={label} name={key} type="number" min="0" max="100" step="1" required
+                defaultValue={weights[key] ?? 0} />
+            ))}
           </ActionForm>
         </Section>
       )}

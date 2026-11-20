@@ -3,6 +3,7 @@ import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { institutionStatuses, institutionTypes, potentials, toOptions } from "@/modules/institutions/labels";
 import { searchTerm } from "@/modules/institutions/schemas";
+import { loadScores, scoreTone } from "@/modules/institutions/scoring";
 
 const PAGE_SIZE = 50;
 const pick = <T extends Record<string, string>>(labels: T, v: unknown) => (typeof v === "string" && v in labels ? v : "");
@@ -30,6 +31,7 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
     supabase.rpc("has_permission", { permission: "import.run" }),
   ]);
 
+  const scores = await loadScores(supabase, (data ?? []).map((i) => i.id));
   const ownerName = new Map((profiles ?? []).map((p) => [p.id, p.full_name || p.email]));
   const pages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
   const pageHref = (p: number) => `/instituciones?${new URLSearchParams({ q, tipo: type, estatus: status, pagina: String(p) })}`;
@@ -64,7 +66,7 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
             <table className="w-full text-left text-sm">
               <thead className="text-muted-foreground">
                 <tr>
-                  {["Nombre", "Tipo", "Estatus", "Potencial", "Ciudad", "Responsable", "Próxima actividad"].map((h) => (
+                  {["Nombre", "Tipo", "Estatus", "Potencial", "Puntaje", "Ciudad", "Responsable", "Próxima actividad"].map((h) => (
                     <th key={h} className="py-2 pr-4 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -76,6 +78,9 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
                       <td className="py-2 pr-4">{institutionTypes[i.institution_type as keyof typeof institutionTypes]}</td>
                       <td className="py-2 pr-4">{institutionStatuses[i.status as keyof typeof institutionStatuses]}</td>
                       <td className="py-2 pr-4">{i.potential ? potentials[i.potential as keyof typeof potentials] : "—"}</td>
+                      <td className="py-2 pr-4">
+                        <span className={`rounded-full px-2 py-0.5 tabular-nums ${scoreTone(scores.get(i.id)?.score ?? null)}`}>{scores.get(i.id)?.score ?? "—"}</span>
+                      </td>
                       <td className="py-2 pr-4">{[i.city, i.country_code].filter(Boolean).join(", ")}</td>
                       <td className="py-2 pr-4">{(i.owner_id && ownerName.get(i.owner_id)) || "—"}</td>
                       <td className={`py-2 pr-4 ${i.next_activity_at && new Date(i.next_activity_at) < new Date() ? "text-red-700" : ""}`}>

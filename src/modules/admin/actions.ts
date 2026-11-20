@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
 import { CURRENCIES } from "@/modules/catalog/labels";
+import { scoreWeightsSchema } from "@/modules/institutions/scoring";
 import { automationSchema, businessUnitSchema, companySchema, exchangeRateSchema, invitationSchema, officeSchema } from "./schemas";
 
 // La autorización real la aplica RLS en la base; aquí solo validamos y traducimos errores.
@@ -55,6 +56,18 @@ export async function updateOrgSettings(_prev: ActionState, formData: FormData):
   if (!data?.length) return { error: "No tienes permiso para cambiar la configuración." };
   revalidatePath("/administracion");
   return { success: "Configuración guardada." };
+}
+
+export async function updateScoreWeights(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = scoreWeightsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data: orgId } = await supabase.rpc("current_org_id");
+  const { data, error } = await supabase.from("organizations").update({ score_weights: parsed.data }).eq("id", orgId).select("id");
+  if (error) return { error: dbErrorMessage(error) };
+  if (!data?.length) return { error: "No tienes permiso para cambiar la configuración." };
+  revalidatePath("/administracion");
+  return { success: "Pesos del puntaje guardados." };
 }
 
 export async function saveAutomation(_prev: ActionState, formData: FormData): Promise<ActionState> {

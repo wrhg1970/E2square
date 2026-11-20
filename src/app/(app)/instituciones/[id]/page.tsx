@@ -11,6 +11,7 @@ import { daysAgo, formatDateTime } from "@/modules/activities/time";
 import { addBranch, addContact, updateInstitution } from "@/modules/institutions/actions";
 import { InstitutionFields, loadInstitutionOptions } from "@/modules/institutions/institution-fields";
 import { formatMoney, opportunityStatuses, totalsByCurrency } from "@/modules/opportunities/labels";
+import { loadScores, scoreTone } from "@/modules/institutions/scoring";
 import { decisionRoles, institutionStatuses, institutionTypes, potentials, toOptions } from "@/modules/institutions/labels";
 
 const chip = "inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted";
@@ -67,12 +68,14 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("institution_id", id).order("due_at", { ascending: false }).limit(100),
     supabase.rpc("current_profile_id"),
   ]);
-  const [{ data: me }, { data: canAudit }, { data: mails }] = await Promise.all([
+  const [{ data: me }, { data: canAudit }, { data: mails }, scores] = await Promise.all([
     supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
     supabase.rpc("has_permission", { permission: "audit.read" }),
     supabase.from("communications").select("id, direction, subject, snippet, from_email, sent_at").eq("institution_id", id)
       .order("sent_at", { ascending: false }).limit(20),
+    loadScores(supabase, [id]),
   ]);
+  const score = scores.get(id);
   const tz = me?.timezone ?? "America/Mexico_City";
   const activities = (acts.data ?? []) as ActivityRow[];
   const pendingActs = activities.filter((a) => a.status === "pending").sort((a, b) => (a.due_at ?? "").localeCompare(b.due_at ?? ""));
@@ -165,6 +168,25 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
           </a>
         )}
       </nav>
+
+      {score && (
+        <section aria-labelledby="puntaje" className="rounded-xl border border-border p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="puntaje" className="font-semibold">
+              Puntaje <span className={`ml-2 rounded-full px-2.5 py-0.5 text-sm ${scoreTone(score.score)}`}>{score.score ?? "—"} / 100</span>
+            </h2>
+            <p className="text-xs text-muted-foreground">Calculado: {formatDateTime(score.computed_at, tz)}</p>
+          </div>
+          <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            {score.factors.map((f) => (
+              <li key={f.key} className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-1">
+                <span><span className="font-medium">{f.label}</span> <span className="text-muted-foreground">· {f.detail}</span></span>
+                <span className="shrink-0 tabular-nums">{Math.round(f.value * f.weight * 10) / 10} / {f.weight}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title={`Contactos (${people.length})`}>
