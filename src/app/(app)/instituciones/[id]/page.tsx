@@ -7,6 +7,7 @@ import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { addBranch, addContact, updateInstitution } from "@/modules/institutions/actions";
 import { InstitutionFields, loadInstitutionOptions } from "@/modules/institutions/institution-fields";
+import { formatMoney, opportunityStatuses, totalsByCurrency } from "@/modules/opportunities/labels";
 import { decisionRoles, institutionStatuses, institutionTypes, potentials, toOptions } from "@/modules/institutions/labels";
 
 const chip = "inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted";
@@ -50,7 +51,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
   const { data: inst } = await supabase.from("institutions").select("*").eq("id", id).maybeSingle();
   if (!inst) notFound();
 
-  const [links, branches, members, parent, options, { data: canWrite }] = await Promise.all([
+  const [links, branches, members, parent, options, { data: canWrite }, opps] = await Promise.all([
     supabase.from("institution_contacts").select("id, contact_id, job_title, department, decision_role, is_primary").eq("institution_id", id),
     supabase.from("institution_branches").select("id, name, city, address").eq("institution_id", id).order("name"),
     supabase.from("institutions").select("id, name, city").eq("parent_institution_id", id).order("name"),
@@ -59,7 +60,18 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
       : Promise.resolve({ data: null }),
     loadInstitutionOptions(supabase),
     supabase.rpc("has_permission", { permission: "institutions.write" }),
+    supabase.from("opportunities").select("id, name, pipeline_id, stage_id, status, amount, probability, currency_code, expected_close_date").eq("institution_id", id).order("created_at", { ascending: false }),
   ]);
+  const oppRows = opps.data ?? [];
+  const openOpps = oppRows.filter((o) => o.status === "open");
+  const [{ data: oppStages }, { data: oppProducts }] = oppRows.length
+    ? await Promise.all([
+        supabase.from("pipeline_stages").select("id, name").in("id", [...new Set(oppRows.map((o) => o.stage_id))]),
+        supabase.from("products").select("default_pipeline_id, name").in("default_pipeline_id", [...new Set(oppRows.map((o) => o.pipeline_id))]),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const oppStage = new Map((oppStages ?? []).map((st) => [st.id, st.name]));
+  const oppProduct = new Map((oppProducts ?? []).map((p) => [p.default_pipeline_id, p.name]));
   const contactIds = (links.data ?? []).map((l) => l.contact_id);
   const { data: contacts } = contactIds.length
     ? await supabase.from("contacts").select("id, first_name, last_name, email, phone").in("id", contactIds)
@@ -86,7 +98,8 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
         </p>
       )}
 
-      <header className="rounded-xl bg-primary p-6 text-primary-foreground">
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl bg-primary p-6 text-primary-foreground">
+        <div>
         <div className="flex flex-wrap gap-2 text-xs font-medium">
           <span className="rounded-full bg-white/15 px-2.5 py-1">{institutionTypes[inst.institution_type as keyof typeof institutionTypes]}</span>
           <span className="rounded-full bg-white/15 px-2.5 py-1">{institutionStatuses[inst.status as keyof typeof institutionStatuses]}</span>
@@ -103,6 +116,14 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
             <span>Grupo: <Link href={`/instituciones/${parent.data.id}`} className="underline">{parent.data.name}</Link></span>
           )}
         </p>
+        </div>
+        {openOpps.length > 0 && (
+          <div className="rounded-lg bg-white/10 p-4 text-right">
+            <p className="text-xs uppercase tracking-wide opacity-70">Pipeline abierto ({openOpps.length})</p>
+            <p className="text-2xl font-semibold">{totalsByCurrency(openOpps, (o) => o.currency_code, (o) => Number(o.amount))}</p>
+            <p className="text-xs opacity-70">Ponderado {totalsByCurrency(openOpps, (o) => o.currency_code, (o) => (Number(o.amount) * o.probability) / 100)}</p>
+          </div>
+        )}
       </header>
 
       <nav aria-label="Acciones" className="flex flex-wrap items-center gap-2">
@@ -186,6 +207,27 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
           />
         </Card>
       </div>
+
+      <Card
+        title={`Oportunidades (${oppRows.length})`}
+        aside={canWrite && <Link href={`/oportunidades/nueva?institucion=${id}`} className="text-sm underline">Nueva oportunidad</Link>}
+      >
+        {oppRows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin oportunidades todavía.</p>
+        ) : (
+          <ul className="divide-y divide-border text-sm">
+            {oppRows.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span>
+                  <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
+                  <span className="text-muted-foreground"> · {oppProduct.get(o.pipeline_id)} · {oppStage.get(o.stage_id)}{o.status !== "open" ? ` (${opportunityStatuses[o.status as keyof typeof opportunityStatuses]})` : ""}</span>
+                </span>
+                <span>{formatMoney(o.amount, o.currency_code)} · {o.probability}%{o.expected_close_date ? ` · ${o.expected_close_date}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       {inst.notes && (
         <Card title="Notas">
