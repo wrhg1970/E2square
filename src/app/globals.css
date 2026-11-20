@@ -1,18 +1,22 @@
 @import "tailwindcss";
 
-/* Tokens provisionales en neutro: se reemplazan con la guía de marca de E2Square (UX_SPEC.md). */
+/* Opción B "Noche ejecutiva" (elegida por Will 2026-11-20): azul noche + acento teal, Manrope. */
 :root {
+  --canvas: #eef1f6;
   --background: #ffffff;
-  --foreground: #171717;
-  --muted: #f4f4f5;
-  --muted-foreground: #5f5f66;
-  --border: #e4e4e7;
-  --primary: #18181b;
-  --primary-foreground: #fafafa;
-  --ring: #a1a1aa;
+  --foreground: #0f172a;
+  --muted: #e8ecf2;
+  --muted-foreground: #4f5d73;
+  --border: #dbe1ea;
+  --primary: #14b8a6;
+  --primary-foreground: #0b1324;
+  --ring: #14b8a6;
+  --band: #0b1324;
+  --band-2: #16213a;
 }
 
 @theme inline {
+  --color-canvas: var(--canvas);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
@@ -21,11 +25,42 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-ring: var(--ring);
-  --font-sans: var(--font-geist-sans);
+  --color-band: var(--band);
+  --color-band-2: var(--band-2);
+  --font-sans: var(--font-manrope);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
+  background: var(--canvas);
   color: var(--foreground);
 }
+
+/* Zonas oscuras (menú y banda de encabezado): mismos tokens, valores de noche. */
+.on-band {
+  --foreground: #ffffff;
+  --muted: #16213a;
+  --muted-foreground: #a5b2c6;
+  --border: #2a3a5c;
+  --background: #16213a;
+  color: var(--foreground);
+}
+
+/* Banda azul noche detrás del encabezado de cada página, a todo el ancho del área principal
+   (el <main> recorta con overflow-x: clip e isolate para que quede detrás del contenido). */
+.page-header {
+  position: relative;
+  padding-bottom: 1.5rem;
+  --pad: 1rem;
+}
+.page-header::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(-1 * var(--pad)) -100vw 0;
+  background: var(--band);
+}
+@media (min-width: 40rem) { .page-header { --pad: 1.5rem; } }
+@media (min-width: 48rem) { .page-header { --pad: 2.5rem; padding-bottom: 2rem; } }
+
+.nav-link[aria-current="page"] { box-shadow: inset 3px 0 var(--primary); }

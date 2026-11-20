@@ -7,7 +7,7 @@ import { formatMoney } from "@/modules/opportunities/labels";
 
 function Block({ title, count, children, tone }: { title: string; count: number; children: ReactNode; tone?: "alert" }) {
   return (
-    <section className="space-y-2 rounded-xl border border-border p-5">
+    <section className="space-y-2 rounded-xl border border-border bg-background shadow-sm p-5">
       <h2 className={`font-semibold ${tone === "alert" && count ? "text-red-700" : ""}`}>{title} ({count})</h2>
       {count === 0 ? <p className="text-sm text-muted-foreground">Nada por aquí.</p> : children}
     </section>
@@ -49,7 +49,7 @@ export default async function MyDayPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div>
+      <div className="on-band page-header">
         <h1 className="text-2xl font-semibold tracking-tight">Mi día</h1>
         <p className="text-sm text-muted-foreground">
           {new Intl.DateTimeFormat("es-MX", { timeZone: tz, dateStyle: "full" }).format(now)} · {todays.length} para hoy · {overdue.length} vencidas
@@ -74,7 +74,7 @@ export default async function MyDayPage() {
         <Block title="Completadas hoy" count={completed.length}>{list(completed)}</Block>
       </div>
 
-      <details className="rounded-xl border border-border p-5">
+      <details className="rounded-xl border border-border bg-background shadow-sm p-5">
         <summary className="cursor-pointer font-semibold">Tarea interna o actividad sin institución</summary>
         <div className="mt-3"><NewActivityForm /></div>
       </details>

@@ -5,7 +5,7 @@ import { ImportForm } from "@/modules/institutions/import-form";
 export default function ImportPage() {
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="space-y-1">
+      <div className="on-band page-header space-y-1">
         <Link href="/instituciones" className="text-sm text-muted-foreground underline">Instituciones</Link>
         <h1 className="text-2xl font-semibold tracking-tight">Importar instituciones</h1>
       </div>

@@ -44,7 +44,7 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
 
   return (
     <div className="max-w-5xl space-y-8">
-      <div className="space-y-1">
+      <div className="on-band page-header space-y-1">
         <Link href="/productos" className="text-sm text-muted-foreground underline">Productos</Link>
         <h1 className="text-2xl font-semibold tracking-tight">{product.name}</h1>
         <p className="text-sm text-muted-foreground">{product.code} · {revenueModels[product.revenue_model as keyof typeof revenueModels]} · {product.default_currency}</p>
@@ -85,7 +85,7 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
         <h2 className="text-lg font-semibold">Pipeline</h2>
         <ol className="space-y-3">
           {(stages.data ?? []).map((s, i) => (
-            <li key={s.id} className="rounded-xl border border-border p-4">
+            <li key={s.id} className="rounded-xl border border-border bg-background shadow-sm p-4">
               {canManage ? (
                 <ActionForm action={updateStage.bind(null, s.id, id)} submitLabel="Guardar" className="grid gap-3 sm:grid-cols-4 sm:items-end">
                   <StageFields stage={s} />
@@ -100,7 +100,7 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
           ))}
         </ol>
         {canManage && product.default_pipeline_id && (
-          <details className="rounded-xl border border-border p-4">
+          <details className="rounded-xl border border-border bg-background shadow-sm p-4">
             <summary className="cursor-pointer text-sm font-medium">Agregar etapa</summary>
             <ActionForm action={addStage.bind(null, product.default_pipeline_id, id)} submitLabel="Agregar etapa" className="mt-3 grid gap-3 sm:grid-cols-4 sm:items-end">
               <StageFields />
@@ -110,7 +110,7 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
       </section>
 
       {canManage && (
-        <details className="rounded-xl border border-border p-4">
+        <details className="rounded-xl border border-border bg-background shadow-sm p-4">
           <summary className="cursor-pointer text-sm font-medium">Editar producto</summary>
           <ActionForm action={updateProduct.bind(null, id)} submitLabel="Guardar producto" className="mt-3 grid gap-3 sm:grid-cols-3 sm:items-end">
             <Field label="Clave" name="code" defaultValue={product.code} required />

@@ -52,7 +52,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
     <div className="max-w-6xl space-y-6">
       <Link href="/oportunidades" className="text-sm text-muted-foreground underline">Oportunidades</Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl bg-primary p-6 text-primary-foreground">
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-band p-6 text-white shadow-lg shadow-band/20">
         <div>
           <div className="flex flex-wrap gap-2 text-xs font-medium">
             <span className="rounded-full bg-white/15 px-2.5 py-1">Etapa: {stage?.name}</span>
@@ -76,7 +76,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
       {opp.status === "lost" && opp.loss_reason && <p className="text-sm">Motivo de pérdida: {opp.loss_reason}</p>}
 
       {canWrite && opp.status !== "cancelled" && (
-        <section className="space-y-2 rounded-xl border border-border p-5">
+        <section className="space-y-2 rounded-xl border border-border bg-background shadow-sm p-5">
           <h2 className="font-semibold">Mover de etapa</h2>
           <StageForm opportunityId={id} stageId={opp.stage_id} stages={stages.data ?? []} />
           <p className="text-xs text-muted-foreground">
@@ -86,7 +86,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
         </section>
       )}
 
-      <section className="space-y-3 rounded-xl border border-border p-5">
+      <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
         <h2 className="font-semibold">Productos</h2>
         {!items.data?.length ? (
           <p className="text-sm text-muted-foreground">Sin productos. Agrega al menos uno para avanzar a Propuesta.</p>
@@ -136,7 +136,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
         )}
       </section>
 
-      <section className="space-y-3 rounded-xl border border-border p-5">
+      <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
         <h2 className="font-semibold">Actividades</h2>
         {isOpen && !opp.next_activity_at && (
           <p role="alert" className="text-sm font-medium text-amber-700">Esta oportunidad no tiene próxima actividad programada.</p>
@@ -158,7 +158,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
 
       <div className="grid gap-6 lg:grid-cols-2">
         {canWrite && (
-          <section className="space-y-3 rounded-xl border border-border p-5">
+          <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
             <h2 className="font-semibold">Datos</h2>
             <ActionForm action={updateOpportunity.bind(null, id)} submitLabel="Guardar" className="grid gap-3 sm:grid-cols-2">
               <Field label="Nombre" name="name" defaultValue={opp.name} required />
@@ -177,11 +177,11 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
             </form>
           </section>
         )}
-        <section className="space-y-3 rounded-xl border border-border p-5">
+        <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
           <h2 className="font-semibold">Documentos</h2>
           <DocumentsPanel opportunityId={id} canWrite={Boolean(canWrite)} />
         </section>
-        <section className="space-y-3 rounded-xl border border-border p-5">
+        <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-semibold">Historial de etapas</h2>
             {canAudit && <Link href={`/administracion/bitacora?registro=${id}&desde=2000-01-01`} className="text-sm hover:underline">Ver bitácora de cambios</Link>}

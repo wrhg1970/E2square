@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-full w-full flex-col md:flex-row">
       <Sidebar userName={profile.full_name || profile.email} alerts={alerts ?? 0} />
-      <main className="min-w-0 flex-1 p-4 sm:p-6 md:p-10">{children}</main>
+      <main className="isolate min-w-0 flex-1 overflow-x-clip p-4 sm:p-6 md:p-10">{children}</main>
     </div>
   );
 }

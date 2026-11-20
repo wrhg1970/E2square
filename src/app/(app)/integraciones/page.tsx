@@ -30,7 +30,7 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
 
   return (
     <div className="max-w-4xl space-y-8">
-      <div>
+      <div className="on-band page-header">
         <h1 className="text-2xl font-semibold tracking-tight">Integraciones</h1>
         <p className="text-sm text-muted-foreground">
           Conecta tu cuenta de Google para registrar en el CRM los correos con tus contactos y mandar actividades a tu Google Calendar.
@@ -40,7 +40,7 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       {sp.conectado && <p role="status" className="text-sm text-green-700">Cuenta de Google conectada.</p>}
 
-      <section className="space-y-4 rounded-xl border border-border p-5">
+      <section className="space-y-4 rounded-xl border border-border bg-background shadow-sm p-5">
         <h2 className="font-semibold">Google (Gmail y Calendar)</h2>
         {!googleEnv() ? (
           <p className="text-sm text-muted-foreground">Pendiente: el administrador debe registrar las credenciales de Google en el servidor.</p>

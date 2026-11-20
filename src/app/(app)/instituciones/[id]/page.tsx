@@ -21,7 +21,7 @@ const href = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}
 
 function Card({ title, aside, children, className }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`space-y-3 rounded-xl border border-border p-5 ${className ?? ""}`}>
+    <section className={`space-y-3 rounded-xl border border-border bg-background shadow-sm p-5 ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-semibold">{title}</h2>
         {aside}
@@ -117,7 +117,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
         </p>
       )}
 
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl bg-primary p-6 text-primary-foreground">
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-band p-6 text-white shadow-lg shadow-band/20">
         <div>
         <div className="flex flex-wrap gap-2 text-xs font-medium">
           <span className="rounded-full bg-white/15 px-2.5 py-1">{institutionTypes[inst.institution_type as keyof typeof institutionTypes]}</span>

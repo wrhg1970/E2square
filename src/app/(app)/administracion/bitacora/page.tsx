@@ -50,7 +50,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/administra
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="on-band page-header">
         <Link href="/administracion" className="text-sm text-muted-foreground hover:underline">← Administración</Link>
         <h1 className="mt-1 text-2xl font-semibold">Bitácora de auditoría</h1>
         <p className="text-sm text-muted-foreground">Quién cambió qué y cuándo: instituciones, oportunidades, montos, etapas, metas y permisos.</p>
