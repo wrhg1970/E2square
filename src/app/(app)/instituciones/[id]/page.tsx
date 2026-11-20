@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVITY_COLUMNS, ActivityItem, NewActivityForm, type ActivityRow } from "@/modules/activities/activity-panel";
+import { daysAgo } from "@/modules/activities/time";
 import { addBranch, addContact, updateInstitution } from "@/modules/institutions/actions";
 import { InstitutionFields, loadInstitutionOptions } from "@/modules/institutions/institution-fields";
 import { formatMoney, opportunityStatuses, totalsByCurrency } from "@/modules/opportunities/labels";
@@ -51,7 +53,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
   const { data: inst } = await supabase.from("institutions").select("*").eq("id", id).maybeSingle();
   if (!inst) notFound();
 
-  const [links, branches, members, parent, options, { data: canWrite }, opps] = await Promise.all([
+  const [links, branches, members, parent, options, { data: canWrite }, opps, acts, { data: meId }] = await Promise.all([
     supabase.from("institution_contacts").select("id, contact_id, job_title, department, decision_role, is_primary").eq("institution_id", id),
     supabase.from("institution_branches").select("id, name, city, address").eq("institution_id", id).order("name"),
     supabase.from("institutions").select("id, name, city").eq("parent_institution_id", id).order("name"),
@@ -61,7 +63,14 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
     loadInstitutionOptions(supabase),
     supabase.rpc("has_permission", { permission: "institutions.write" }),
     supabase.from("opportunities").select("id, name, pipeline_id, stage_id, status, amount, probability, currency_code, expected_close_date").eq("institution_id", id).order("created_at", { ascending: false }),
+    supabase.from("activities").select(ACTIVITY_COLUMNS).eq("institution_id", id).order("due_at", { ascending: false }).limit(100),
+    supabase.rpc("current_profile_id"),
   ]);
+  const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
+  const tz = me?.timezone ?? "America/Mexico_City";
+  const activities = (acts.data ?? []) as ActivityRow[];
+  const pendingActs = activities.filter((a) => a.status === "pending").sort((a, b) => (a.due_at ?? "").localeCompare(b.due_at ?? ""));
+  const pastActs = activities.filter((a) => a.status !== "pending");
   const oppRows = opps.data ?? [];
   const openOpps = oppRows.filter((o) => o.status === "open");
   const [{ data: oppStages }, { data: oppProducts }] = oppRows.length
@@ -83,6 +92,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
   const primary = people[0]?.contact;
 
   const owner = options.owners.find((o) => o.value === inst.owner_id)?.label;
+  const personName = new Map(options.owners.map((o) => [o.value, o.label]));
   const office = options.offices.find((o) => o.value === inst.office_id)?.label;
   const mail = primary?.email ?? inst.email;
   const phone = primary?.phone ?? inst.phone;
@@ -112,6 +122,10 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm opacity-80">
           {place && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{place}</span>}
           {inst.source && <span>Origen: {inst.source}</span>}
+          <span>
+            {inst.last_activity_at ? `Última interacción hace ${daysAgo(inst.last_activity_at)} días` : "Sin interacciones registradas"}
+          </span>
+          {!inst.next_activity_at && <span className="rounded-full bg-amber-400/90 px-2 py-0.5 text-xs font-medium text-black">Sin próxima actividad</span>}
           {parent.data && (
             <span>Grupo: <Link href={`/instituciones/${parent.data.id}`} className="underline">{parent.data.name}</Link></span>
           )}
@@ -226,6 +240,30 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card title={`Actividades (${pendingActs.length} pendientes)`}>
+        {pendingActs.length > 0 && (
+          <ul className="divide-y divide-border">
+            {pendingActs.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={Boolean(canWrite)} />)}
+          </ul>
+        )}
+        {canWrite && (
+          <details className="rounded-md border border-border p-3" open={activities.length === 0}>
+            <summary className="cursor-pointer text-sm font-medium">Registrar o programar actividad</summary>
+            <div className="mt-3">
+              <NewActivityForm institutionId={id} contacts={people.filter((p) => p.contact).map((p) => ({ value: p.contact_id, label: `${p.contact!.first_name} ${p.contact!.last_name}`.trim() }))} />
+            </div>
+          </details>
+        )}
+        {pastActs.length > 0 && (
+          <details>
+            <summary className="cursor-pointer text-sm font-medium">Historial ({pastActs.length})</summary>
+            <ul className="mt-2 divide-y divide-border">
+              {pastActs.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={false} />)}
+            </ul>
+          </details>
         )}
       </Card>
 

@@ -7,6 +7,6 @@ export const navItems = [
   { href: "/contactos", label: "Contactos", icon: Users, ready: true },
   { href: "/oportunidades", label: "Oportunidades", icon: Briefcase, ready: true },
   { href: "/productos", label: "Productos", icon: Package, ready: true },
-  { href: "/mi-dia", label: "Mi día", icon: CalendarCheck, ready: false },
+  { href: "/mi-dia", label: "Mi día", icon: CalendarCheck, ready: true },
   { href: "/administracion", label: "Administración", icon: Settings, ready: true },
 ] as const;

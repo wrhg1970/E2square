@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
-import { createBusinessUnit, createCompany, createInvitation, createOffice } from "@/modules/admin/actions";
+import { createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -33,7 +33,7 @@ function Table({ headers, rows, empty }: { headers: string[]; rows: ReactNode[][
 
 export default async function AdminPage() {
   const supabase = await createClient();
-  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers] = await Promise.all([
+  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org] = await Promise.all([
     supabase.from("companies").select("id, legal_name, tax_id, country_code, status").order("legal_name"),
     supabase.from("business_units").select("id, name, company_id").order("name"),
     supabase.from("offices").select("id, name, company_id, business_unit_id, country_code, timezone").order("name"),
@@ -43,6 +43,7 @@ export default async function AdminPage() {
     supabase.from("invitations").select("id, email, role_id, accepted_at").order("created_at", { ascending: false }),
     supabase.rpc("has_permission", { permission: "admin.structure" }),
     supabase.rpc("has_permission", { permission: "admin.users" }),
+    supabase.from("organizations").select("require_next_activity").maybeSingle(),
   ]);
 
   if (companies.error) {
@@ -58,6 +59,17 @@ export default async function AdminPage() {
   return (
     <div className="max-w-5xl space-y-8">
       <h1 className="text-2xl font-semibold tracking-tight">Administración</h1>
+
+      {canStructure.data && org.data && (
+        <Section title="Reglas comerciales">
+          <ActionForm action={updateOrgSettings} submitLabel="Guardar">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="require_next_activity" defaultChecked={org.data.require_next_activity} />
+              Exigir próxima actividad: no se puede cerrar la última actividad pendiente de una oportunidad abierta sin programar otra
+            </label>
+          </ActionForm>
+        </Section>
+      )}
 
       <Section title="Empresas">
         <Table

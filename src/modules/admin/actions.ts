@@ -39,3 +39,17 @@ export async function createInvitation(_prev: ActionState, formData: FormData) {
     "Invitación registrada. Ahora crea el usuario en Supabase (Authentication > Add user) con ese correo.",
   );
 }
+
+export async function updateOrgSettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: orgId } = await supabase.rpc("current_org_id");
+  const { data, error } = await supabase
+    .from("organizations")
+    .update({ require_next_activity: formData.get("require_next_activity") === "on" })
+    .eq("id", orgId)
+    .select("id");
+  if (error) return { error: dbErrorMessage(error) };
+  if (!data?.length) return { error: "No tienes permiso para cambiar la configuración." };
+  revalidatePath("/administracion");
+  return { success: "Configuración guardada." };
+}

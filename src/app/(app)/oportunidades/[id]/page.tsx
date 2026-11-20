@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField, TextareaField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVITY_COLUMNS, ActivityItem, NewActivityForm, type ActivityRow } from "@/modules/activities/activity-panel";
 import { stageRequirements } from "@/modules/catalog/labels";
 import { addItem, removeItem, setCancelled, updateOpportunity } from "@/modules/opportunities/actions";
 import { formatMoney, opportunityStatuses } from "@/modules/opportunities/labels";
@@ -17,7 +18,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
   const { data: opp } = await supabase.from("opportunities").select("*").eq("id", id).maybeSingle();
   if (!opp) notFound();
 
-  const [inst, stages, items, history, products, prices, links, owners, { data: canWrite }] = await Promise.all([
+  const [inst, stages, items, history, products, prices, links, owners, { data: canWrite }, acts, { data: meId }] = await Promise.all([
     supabase.from("institutions").select("id, name").eq("id", opp.institution_id).maybeSingle(),
     supabase.from("pipeline_stages").select("id, name, sort_order, is_won, is_lost, required_fields").eq("pipeline_id", opp.pipeline_id).order("sort_order"),
     supabase.from("opportunity_items").select("*").eq("opportunity_id", id).order("created_at"),
@@ -27,7 +28,12 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
     supabase.from("institution_contacts").select("contact_id").eq("institution_id", opp.institution_id),
     supabase.from("profiles").select("id, full_name, email").order("full_name"),
     supabase.rpc("has_permission", { permission: "institutions.write" }),
+    supabase.from("activities").select(ACTIVITY_COLUMNS).eq("opportunity_id", id).order("due_at", { ascending: false }).limit(100),
+    supabase.rpc("current_profile_id"),
   ]);
+  const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
+  const tz = me?.timezone ?? "America/Mexico_City";
+  const activities = ((acts.data ?? []) as ActivityRow[]).sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending"));
   const contactIds = (links.data ?? []).map((l) => l.contact_id);
   const { data: contacts } = contactIds.length ? await supabase.from("contacts").select("id, first_name, last_name").in("id", contactIds) : { data: [] };
 
@@ -122,6 +128,26 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
               <Field label="Costo unitario" name="unit_cost" type="number" step="0.01" min={0} />
               <Field label="Descripción" name="description" className="sm:col-span-6" />
             </ActionForm>
+          </details>
+        )}
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-border p-5">
+        <h2 className="font-semibold">Actividades</h2>
+        {isOpen && !opp.next_activity_at && (
+          <p role="alert" className="text-sm font-medium text-amber-700">Esta oportunidad no tiene próxima actividad programada.</p>
+        )}
+        {activities.length > 0 && (
+          <ul className="divide-y divide-border">
+            {activities.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={Boolean(canWrite)} />)}
+          </ul>
+        )}
+        {canWrite && (
+          <details className="rounded-md border border-border p-3" open={isOpen && !opp.next_activity_at}>
+            <summary className="cursor-pointer text-sm font-medium">Registrar o programar actividad</summary>
+            <div className="mt-3">
+              <NewActivityForm opportunityId={id} contacts={(contacts ?? []).map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}`.trim() }))} />
+            </div>
           </details>
         )}
       </section>
