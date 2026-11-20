@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { aiEnv } from "@/modules/ai/config";
+import { BriefPanel } from "@/modules/ai/brief-panel";
 import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ui/action-form";
@@ -140,6 +142,8 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
           </details>
         )}
       </section>
+
+      <BriefPanel opportunityId={id} enabled={aiEnv() !== null} />
 
       <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
         <h2 className="font-semibold">Actividades</h2>

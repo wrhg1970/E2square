@@ -77,6 +77,8 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   await expect(page.getByRole("heading", { name: `IHS ${stamp}` })).toBeVisible();
 
   await page.getByText(/Agregar producto/).click();
+  await expect(page.getByRole("heading", { name: "Resumen y riesgos (IA)" })).toBeVisible();
+  await expect(page.getByText("Pendiente: el administrador debe configurar la IA.")).toBeVisible();
   await page.getByLabel("Producto", { exact: true }).selectOption({ label: "IHS" });
   await page.getByLabel("Cantidad").fill("10");
   await page.getByLabel("Precio unitario").fill("100");
@@ -135,12 +137,14 @@ test("el calendario muestra la actividad de la semana", async ({ page }) => {
 test("el recordatorio aparece en Mi día antes de la fecha", async ({ page }) => {
   const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(Date.now() + 86_400_000);
   await page.goto("/mi-dia");
-  await page.getByText("Tarea interna o actividad sin institución").click();
-  await page.getByLabel("Asunto").fill(`Recordar ${stamp}`);
-  await page.getByLabel("Fecha y hora").fill(`${tomorrow}T00:01`);
-  await page.getByLabel("Recordatorio").selectOption({ label: "1 día antes" });
-  await page.getByRole("button", { name: "Guardar actividad" }).click();
-  await expect(page.getByText("Actividad programada.")).toBeVisible();
+  // Acotado al formulario: de corridas anteriores puede haber otras actividades con su propio "Fecha y hora".
+  const form = page.locator("details").filter({ hasText: "Tarea interna o actividad sin institución" });
+  await form.getByText("Tarea interna o actividad sin institución").click();
+  await form.getByLabel("Asunto").fill(`Recordar ${stamp}`);
+  await form.getByLabel("Fecha y hora").fill(`${tomorrow}T00:01`);
+  await form.getByLabel("Recordatorio").selectOption({ label: "1 día antes" });
+  await form.getByRole("button", { name: "Guardar actividad" }).click();
+  await expect(form.getByText("Actividad programada.")).toBeVisible();
   await page.reload();
   const block = page.locator("section").filter({ has: page.getByRole("heading", { name: /^Recordatorios/ }) });
   await expect(block.getByText(`Recordar ${stamp}`)).toBeVisible();
@@ -230,6 +234,7 @@ test("integraciones explica qué falta si Google no está configurado", async ({
   await page.getByRole("link", { name: "Integraciones" }).first().click();
   await expect(page.getByRole("heading", { name: "Integraciones" })).toBeVisible();
   await expect(page.getByText("Pendiente: el administrador debe registrar las credenciales de Google")).toBeVisible();
+  await expect(page.getByText("Pendiente: el administrador debe elegir Gemini o Claude")).toBeVisible();
   await page.goto("/api/google/connect");
   await expect(page.getByText("La integración con Google aún no está configurada")).toBeVisible();
 });
