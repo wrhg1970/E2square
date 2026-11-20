@@ -28,6 +28,11 @@ export function ActionForm({
           {state?.success && <span className="text-green-700">{state.success}</span>}
         </p>
       </div>
+      {state?.details && state.details.length > 0 && (
+        <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          {state.details.map((d) => <li key={d}>{d}</li>)}
+        </ul>
+      )}
     </form>
   );
 }

@@ -31,3 +31,12 @@ export function SelectField({
     </label>
   );
 }
+
+export function TextareaField({ label, className, ...props }: ComponentProps<"textarea"> & { label: string }) {
+  return (
+    <label className={cn("flex flex-col gap-1 text-sm", className)}>
+      <span className="font-medium">{label}</span>
+      <textarea className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" {...props} />
+    </label>
+  );
+}
