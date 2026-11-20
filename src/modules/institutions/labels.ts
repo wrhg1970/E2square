@@ -5,6 +5,7 @@ export const institutionTypes = {
   education_group: "Grupo educativo",
   company: "Empresa",
   association: "Asociación",
+  individual: "Particular / alumno",
   other: "Otra",
 } as const;
 
