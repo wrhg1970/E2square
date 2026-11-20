@@ -10,10 +10,10 @@ import { formatDateTime } from "./time";
 export type ActivityRow = {
   id: string; activity_type: string; subject: string; status: string; due_at: string | null; completed_at: string | null;
   outcome: string | null; notes: string | null; priority: string; owner_id: string; institution_id: string | null; opportunity_id: string | null;
-  google_event_id: string | null;
+  google_event_id: string | null; reminder_at: string | null;
 };
 
-export const ACTIVITY_COLUMNS = "id, activity_type, subject, status, due_at, completed_at, outcome, notes, priority, owner_id, institution_id, opportunity_id, google_event_id";
+export const ACTIVITY_COLUMNS = "id, activity_type, subject, status, due_at, completed_at, outcome, notes, priority, owner_id, institution_id, opportunity_id, google_event_id, reminder_at";
 
 // Formulario para cerrar una actividad, con la opción de programar la siguiente.
 export function CompleteForm({ id }: { id: string }) {
@@ -73,6 +73,10 @@ export function NewActivityForm({ institutionId, opportunityId, contacts = [] }:
       <SelectField label="Tipo" name="activity_type" options={toOptions(activityTypes)} defaultValue="call" />
       <Field label="Asunto" name="subject" required className="sm:col-span-2" />
       <Field label="Fecha y hora" name="due_local" type="datetime-local" />
+      <SelectField label="Recordatorio" name="reminder" defaultValue="" options={[
+        { value: "", label: "Sin recordatorio" }, { value: "0", label: "A la hora" }, { value: "15", label: "15 min antes" },
+        { value: "60", label: "1 hora antes" }, { value: "1440", label: "1 día antes" },
+      ]} />
       <SelectField label="Prioridad" name="priority" options={toOptions(priorities)} defaultValue="normal" />
       {contacts.length > 0 ? (
         <SelectField label="Contacto" name="contact_id" options={[{ value: "", label: "Ninguno" }, ...contacts]} />
