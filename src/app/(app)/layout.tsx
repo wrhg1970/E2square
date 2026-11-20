@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("id, full_name, email, timezone").eq("auth_user_id", auth.user.id).maybeSingle();
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("id, full_name, email, timezone").eq("auth_user_id", auth.user.id).maybeSingle();
 
   // Cuenta válida pero sin invitación: no tiene organización ni datos visibles.
   if (!profile) {
@@ -21,6 +21,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="max-w-sm space-y-3 text-sm">
           <h1 className="text-xl font-semibold">Sin acceso todavía</h1>
           <p className="text-muted-foreground">Tu cuenta no tiene una invitación activa. Pide a un administrador que te invite.</p>
+          <p className="text-muted-foreground">Entraste como <span className="font-medium text-foreground">{auth.user.email}</span>.</p>
+          {profileError && (
+            <p className="text-red-700">No se pudo leer tu perfil ({profileError.code}): {profileError.message}</p>
+          )}
           <form action={signOut}>
             <button type="submit" className="underline">Cerrar sesión</button>
           </form>
