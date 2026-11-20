@@ -73,7 +73,7 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
           <p className="text-sm">
             Total: <span className="font-semibold tabular-nums">{total}</span>
           </p>
-          <div className="overflow-x-auto">
+          <div className="table-card">
             <table className="w-full text-left text-sm">
               <thead className="text-muted-foreground">
                 <tr>
@@ -100,14 +100,14 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
                         {commissionStatuses[r.status]}
                         {r.decision_note && <p className="text-xs text-muted-foreground">{r.decision_note}</p>}
                       </td>
-                      <td className="py-2">
+                      <td className="py-2 pr-4">
                         {canApprove.data && !mine && r.status === "pending" && (
                           <div className="flex flex-col gap-2">
                             <ActionForm action={decideCommission} submitLabel="Aprobar" className="flex items-center gap-2">
                               <input type="hidden" name="id" value={r.id} />
                               <input type="hidden" name="status" value="approved" />
                             </ActionForm>
-                            <ActionForm action={decideCommission} submitLabel="Rechazar" className="flex flex-wrap items-end gap-2">
+                            <ActionForm action={decideCommission} submitLabel="Rechazar" submitVariant="outline" className="flex flex-wrap items-end gap-2">
                               <input type="hidden" name="id" value={r.id} />
                               <input type="hidden" name="status" value="rejected" />
                               <Field label="Motivo del rechazo" name="note" className="w-48" />
@@ -135,7 +135,7 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
         {sortedRates.length === 0 ? (
           <p className="text-sm text-muted-foreground">Todavía no hay porcentajes definidos.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="table-card"><table className="w-full text-left text-sm">
             <thead className="text-muted-foreground">
               <tr>{["Agente", "Producto", "%", "Sobre", ""].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
             </thead>
@@ -157,7 +157,7 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
         {canManage.data && (
           <ActionForm action={saveRate} submitLabel="Guardar porcentaje" className="grid gap-3 sm:grid-cols-4 sm:items-end">

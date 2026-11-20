@@ -7,6 +7,7 @@ import { addPriceItem, addStage, updateProduct, updateStage } from "@/modules/ca
 import { CURRENCIES, revenueModels, stageRequirements } from "@/modules/catalog/labels";
 import { toOptions } from "@/modules/institutions/labels";
 import { formatMoney } from "@/modules/opportunities/labels";
+import { formatDay } from "@/modules/activities/time";
 
 function StageFields({ stage }: { stage?: { name: string; default_probability: number; sla_days: number | null; required_fields: string[]; is_won: boolean; is_lost: boolean } }) {
   return (
@@ -55,7 +56,7 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
         {!prices.data?.length ? (
           <p className="text-sm text-muted-foreground">Sin precios. Las oportunidades podrán capturar precio manual.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="table-card"><table className="w-full text-left text-sm">
             <thead className="text-muted-foreground"><tr>{["Concepto", "Unidad", "Precio", "Costo", "Vigente desde"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr></thead>
             <tbody>
               {prices.data.map((p) => (
@@ -64,11 +65,11 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
                   <td className="py-2 pr-4">{p.unit_name}</td>
                   <td className="py-2 pr-4">{formatMoney(p.unit_price, p.currency_code)}</td>
                   <td className="py-2 pr-4">{formatMoney(p.unit_cost, p.currency_code)}</td>
-                  <td className="py-2 pr-4">{p.valid_from}</td>
+                  <td className="py-2 pr-4">{p.valid_from ? formatDay(p.valid_from) : "—"}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
         {canManage && (
           <ActionForm action={addPriceItem.bind(null, id)} submitLabel="Agregar precio" className="grid gap-3 sm:grid-cols-6 sm:items-end">

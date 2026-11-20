@@ -5,6 +5,7 @@ import { ACTIVITY_COLUMNS, ActivityItem, NewActivityForm, type ActivityRow } fro
 import { dayIn } from "@/modules/activities/time";
 import { loadScores } from "@/modules/institutions/scoring";
 import { formatMoney } from "@/modules/opportunities/labels";
+import { formatDay } from "@/modules/activities/time";
 
 function Block({ title, count, children, tone }: { title: string; count: number; children: ReactNode; tone?: "alert" }) {
   return (
@@ -77,7 +78,7 @@ export default async function MyDayPage() {
           <ul className="divide-y divide-border text-sm">
             {(idleOpps.data ?? []).map((o) => (
               <li key={o.id} className="flex justify-between gap-2 py-2">
-                <Link href={`/oportunidades/${o.id}`} className="font-medium underline">{o.name}</Link>
+                <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
                 <span className="text-muted-foreground">{instName.get(o.institution_id)} · {formatMoney(o.amount, o.currency_code)}</span>
               </li>
             ))}
@@ -88,8 +89,8 @@ export default async function MyDayPage() {
           <ul className="divide-y divide-border text-sm">
             {(lateOpps.data ?? []).map((o) => (
               <li key={o.id} className="flex justify-between gap-2 py-2">
-                <Link href={`/oportunidades/${o.id}`} className="font-medium underline">{o.name}</Link>
-                <span className="text-muted-foreground">{instName.get(o.institution_id)} · cierre {o.expected_close_date}</span>
+                <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
+                <span className="text-muted-foreground">{instName.get(o.institution_id)} · cierre {formatDay(o.expected_close_date!)}</span>
               </li>
             ))}
           </ul>
@@ -99,7 +100,7 @@ export default async function MyDayPage() {
           <ul className="divide-y divide-border text-sm">
             {prospects.map((i) => (
               <li key={i.id} className="flex justify-between gap-2 py-2">
-                <Link href={`/instituciones/${i.id}`} className="font-medium underline">{i.name}</Link>
+                <Link href={`/instituciones/${i.id}`} className="font-medium hover:underline">{i.name}</Link>
                 <span className="flex gap-3">
                   <span className="text-muted-foreground tabular-nums">Puntaje {i.s?.score ?? "—"}</span>
                   <Link href={`/oportunidades/nueva?institucion=${i.id}`} className="underline">Crear oportunidad</Link>

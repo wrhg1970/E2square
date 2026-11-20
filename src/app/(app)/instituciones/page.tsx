@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { institutionStatuses, institutionTypes, potentials, toOptions } from "@/modules/institutions/labels";
 import { searchTerm } from "@/modules/institutions/schemas";
 import { loadScores, scoreTone } from "@/modules/institutions/scoring";
+import { buttonVariants } from "@/components/ui/button";
 
 const PAGE_SIZE = 50;
 const pick = <T extends Record<string, string>>(labels: T, v: unknown) => (typeof v === "string" && v in labels ? v : "");
@@ -41,8 +42,8 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
       <div className="on-band page-header flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Instituciones</h1>
         <div className="flex gap-2 text-sm">
-          {canImport && <Link href="/instituciones/importar" className="rounded-md border border-border px-3 py-2 hover:bg-muted">Importar Excel</Link>}
-          {canWrite && <Link href="/instituciones/nueva" className="rounded-md bg-primary px-3 py-2 text-primary-foreground">Nueva institución</Link>}
+          {canImport && <Link href="/instituciones/importar" className={buttonVariants({ variant: "outline" })}>Importar Excel</Link>}
+          {canWrite && <Link href="/instituciones/nueva" className={buttonVariants()}>Nueva institución</Link>}
         </div>
       </div>
 
@@ -50,7 +51,7 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
         <Field label="Buscar" name="q" defaultValue={q} placeholder="Nombre o ciudad" />
         <SelectField label="Tipo" name="tipo" defaultValue={type} options={toOptions(institutionTypes, "Todos")} />
         <SelectField label="Estatus" name="estatus" defaultValue={status} options={toOptions(institutionStatuses, "Todos")} />
-        <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Filtrar</button>
+        <button type="submit" className={buttonVariants({ variant: "outline", className: "sm:justify-self-start" })}>Filtrar</button>
       </form>
 
       {error ? (
@@ -62,7 +63,7 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
       ) : (
         <>
           <p className="text-sm text-muted-foreground">{count} instituciones</p>
-          <div className="overflow-x-auto">
+          <div className="table-card">
             <table className="w-full text-left text-sm">
               <thead className="text-muted-foreground">
                 <tr>

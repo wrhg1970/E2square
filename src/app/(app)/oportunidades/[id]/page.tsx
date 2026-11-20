@@ -9,6 +9,7 @@ import { stageRequirements } from "@/modules/catalog/labels";
 import { addItem, removeItem, setCancelled, updateOpportunity } from "@/modules/opportunities/actions";
 import { formatMoney, opportunityStatuses } from "@/modules/opportunities/labels";
 import { StageForm } from "@/modules/opportunities/stage-form";
+import { formatDay } from "@/modules/activities/time";
 
 const dateTime = (d: string) => new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(d));
 
@@ -63,7 +64,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
           <p className="mt-1 text-sm opacity-80">
             {inst.data && <Link href={`/instituciones/${inst.data.id}`} className="underline">{inst.data.name}</Link>}
             {opp.owner_id && ` · ${personName.get(opp.owner_id)}`}
-            {opp.expected_close_date && ` · Cierre estimado ${opp.expected_close_date}`}
+            {opp.expected_close_date && ` · Cierre estimado ${formatDay(opp.expected_close_date)}`}
           </p>
         </div>
         <dl className="grid grid-cols-3 gap-4 rounded-lg bg-white/10 p-4 text-right">
