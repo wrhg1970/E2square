@@ -15,6 +15,8 @@ export const auditTables: Record<string, string> = {
   exchange_rates: "Tipos de cambio",
   commissions: "Comisiones",
   commission_rates: "Porcentajes de comisión",
+  automation_rules: "Automatizaciones",
+  activities: "Actividades",
   documents: "Documentos",
   profiles: "Usuarios",
   profile_roles: "Roles de usuario",

@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
-import { addExchangeRate, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
+import { addExchangeRate, saveAutomation, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
+import { automationRules } from "@/modules/admin/schemas";
 import { CURRENCIES } from "@/modules/catalog/labels";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -37,7 +38,7 @@ const currencyOptions = CURRENCIES.map((c) => ({ value: c, label: c }));
 
 export default async function AdminPage() {
   const supabase = await createClient();
-  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org, rates] = await Promise.all([
+  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org, rates, automations] = await Promise.all([
     supabase.from("companies").select("id, legal_name, tax_id, country_code, status").order("legal_name"),
     supabase.from("business_units").select("id, name, company_id").order("name"),
     supabase.from("offices").select("id, name, company_id, business_unit_id, country_code, timezone").order("name"),
@@ -49,6 +50,7 @@ export default async function AdminPage() {
     supabase.rpc("has_permission", { permission: "admin.users" }),
     supabase.from("organizations").select("require_next_activity, reporting_currency").maybeSingle(),
     supabase.from("exchange_rates").select("id, base_currency, quote_currency, rate, effective_at").order("effective_at", { ascending: false }).limit(50),
+    supabase.from("automation_rules").select("key, enabled, days"),
   ]);
 
   if (companies.error) {
@@ -78,6 +80,31 @@ export default async function AdminPage() {
             <SelectField label="Moneda de reporte (dashboard y metas)" name="reporting_currency" defaultValue={org.data.reporting_currency}
               options={currencyOptions} className="max-w-xs" />
           </ActionForm>
+        </Section>
+      )}
+
+      {canStructure.data && (
+        <Section title="Automatizaciones">
+          <p className="text-sm text-muted-foreground">
+            Crean tareas internas para el dueño de la oportunidad; nunca envían mensajes. Cada tarea indica en su asunto qué la generó.
+          </p>
+          <ul className="space-y-3">
+            {Object.entries(automationRules).map(([key, rule]) => {
+              const current = (automations.data ?? []).find((a) => a.key === key);
+              return (
+                <li key={key} className="rounded-xl border border-border p-4">
+                  <ActionForm action={saveAutomation} submitLabel="Guardar" className="flex flex-wrap items-end gap-4">
+                    <input type="hidden" name="key" value={key} />
+                    <label className="flex min-w-64 flex-1 items-start gap-2 text-sm">
+                      <input type="checkbox" name="enabled" defaultChecked={current?.enabled ?? false} className="mt-1" />
+                      <span><span className="font-medium">{rule.title}.</span> {rule.when}</span>
+                    </label>
+                    <Field label="Vence en (días)" name="days" type="number" min="0" max="90" defaultValue={current?.days ?? 1} className="w-32" />
+                  </ActionForm>
+                </li>
+              );
+            })}
+          </ul>
         </Section>
       )}
 
