@@ -68,12 +68,13 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("institution_id", id).order("due_at", { ascending: false }).limit(100),
     supabase.rpc("current_profile_id"),
   ]);
-  const [{ data: me }, { data: canAudit }, { data: mails }, scores] = await Promise.all([
+  const [{ data: me }, { data: canAudit }, { data: mails }, scores, { data: catalog }] = await Promise.all([
     supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
     supabase.rpc("has_permission", { permission: "audit.read" }),
     supabase.from("communications").select("id, direction, subject, snippet, from_email, sent_at").eq("institution_id", id)
       .order("sent_at", { ascending: false }).limit(20),
     loadScores(supabase, [id]),
+    supabase.from("products").select("name, default_pipeline_id").eq("active", true).not("default_pipeline_id", "is", null).order("name"),
   ]);
   const score = scores.get(id);
   const tz = me?.timezone ?? "America/Mexico_City";
@@ -89,6 +90,8 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
       ])
     : [{ data: [] }, { data: [] }];
   const oppStage = new Map((oppStages ?? []).map((st) => [st.id, st.name]));
+  // Cross-sell por reglas: productos activos que nunca se le han ofrecido a esta institución.
+  const notOffered = (catalog ?? []).filter((p) => !oppRows.some((o) => o.pipeline_id === p.default_pipeline_id));
   const oppProduct = new Map((oppProducts ?? []).map((p) => [p.default_pipeline_id, p.name]));
   const contactIds = (links.data ?? []).map((l) => l.contact_id);
   const { data: contacts } = contactIds.length
@@ -269,6 +272,22 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
               </li>
             ))}
           </ul>
+        )}
+        {oppRows.length > 0 && notOffered.length > 0 && (
+          <div className="rounded-md bg-muted/60 p-3 text-sm">
+            <p className="font-medium">Productos que aún no le has ofrecido</p>
+            <ul className="mt-1 flex flex-wrap gap-2">
+              {notOffered.map((p) => (
+                <li key={p.default_pipeline_id}>
+                  {canWrite ? (
+                    <Link href={`/oportunidades/nueva?institucion=${id}&producto=${p.default_pipeline_id}`} className="rounded-full border border-border bg-background px-2.5 py-0.5 hover:bg-muted">{p.name}</Link>
+                  ) : (
+                    <span className="rounded-full border border-border px-2.5 py-0.5">{p.name}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </Card>
 

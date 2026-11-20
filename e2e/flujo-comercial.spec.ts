@@ -101,6 +101,13 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   const csv = readFileSync(await (await download).path(), "utf8");
   expect(csv).toContain(institution);
   expect(csv).toContain("Ganada");
+
+  await page.goto(instUrl);
+  const offer = page.getByText("Productos que aún no le has ofrecido").locator("..");
+  await expect(offer).toBeVisible();
+  await expect(offer.getByRole("link", { name: "IHS" })).toHaveCount(0);
+  await offer.getByRole("link").first().click();
+  await expect(page.getByLabel("Producto (pipeline)")).not.toHaveValue("");
 });
 
 test("la venta ganada genera su comisión pendiente", async ({ page }) => {

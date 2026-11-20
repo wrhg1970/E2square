@@ -5,7 +5,7 @@ import { CURRENCIES } from "@/modules/catalog/labels";
 import { createOpportunity } from "@/modules/opportunities/actions";
 
 export default async function NewOpportunityPage({ searchParams }: PageProps<"/oportunidades/nueva">) {
-  const { institucion } = await searchParams;
+  const { institucion, producto } = await searchParams;
   const supabase = await createClient();
   const [{ data: insts }, { data: products }, { data: owners }] = await Promise.all([
     supabase.from("institutions").select("id, name").order("name").limit(1000),
@@ -30,6 +30,7 @@ export default async function NewOpportunityPage({ searchParams }: PageProps<"/o
           <SelectField
             label="Producto (pipeline)"
             name="pipeline_id"
+            defaultValue={typeof producto === "string" ? producto : ""}
             options={[{ value: "", label: "Elige un producto" }, ...(products ?? []).map((p) => ({ value: p.default_pipeline_id!, label: p.name }))]}
             required
           />
