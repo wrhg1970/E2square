@@ -130,6 +130,8 @@ test("en celular el menú lleva a Mi día", async ({ page }) => {
   await page.getByText("Menú").click();
   await page.getByRole("link", { name: /Mi día/ }).first().click();
   await expect(page.getByRole("heading", { name: "Mi día" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Instituciones para abrir oportunidad/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Cierre estimado ya pasó/ })).toBeVisible();
 });
 
 test("administra ámbitos y no permite auto-bloquearse", async ({ page }) => {

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVITY_COLUMNS, ActivityItem, NewActivityForm, type ActivityRow } from "@/modules/activities/activity-panel";
 import { dayIn } from "@/modules/activities/time";
+import { loadScores } from "@/modules/institutions/scoring";
 import { formatMoney } from "@/modules/opportunities/labels";
 
 function Block({ title, count, children, tone }: { title: string; count: number; children: ReactNode; tone?: "alert" }) {
@@ -25,11 +26,21 @@ export default async function MyDayPage() {
   const weekAhead = new Date(now.getTime() + 7 * 86_400_000).toISOString();
   const dayStart = new Date(now.getTime() - 36 * 3_600_000).toISOString();
 
-  const [pending, doneToday, idleOpps] = await Promise.all([
+  const [pending, doneToday, idleOpps, lateOpps, myInsts] = await Promise.all([
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("owner_id", me.id).eq("status", "pending").or(`due_at.lte.${weekAhead},due_at.is.null`).order("due_at", { nullsFirst: false }).limit(200),
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("owner_id", me.id).eq("status", "done").gte("completed_at", dayStart).order("completed_at", { ascending: false }),
     supabase.from("opportunities").select("id, name, institution_id, amount, currency_code").eq("owner_id", me.id).eq("status", "open").is("next_activity_at", null).order("amount", { ascending: false }).limit(50),
+    supabase.from("opportunities").select("id, name, institution_id, expected_close_date").eq("owner_id", me.id).eq("status", "open").lt("expected_close_date", today).order("expected_close_date").limit(50),
+    // shortcut: solo las 200 con interacción más antigua; paginar si un vendedor tiene más cartera.
+    supabase.from("institutions").select("id, name").eq("owner_id", me.id).order("last_activity_at", { nullsFirst: true }).limit(200),
   ]);
+  // Siguiente mejor acción: instituciones propias sin oportunidad abierta, de mayor a menor puntaje.
+  const scores = await loadScores(supabase, (myInsts.data ?? []).map((i) => i.id));
+  const prospects = (myInsts.data ?? [])
+    .map((i) => ({ ...i, s: scores.get(i.id) }))
+    .filter((i) => i.s && i.s.factors.find((f) => f.key === "need")?.value === 0)
+    .sort((a, b) => (b.s?.score ?? 0) - (a.s?.score ?? 0))
+    .slice(0, 5);
   const rows = (pending.data ?? []) as ActivityRow[];
   const overdue = rows.filter((a) => a.due_at && new Date(a.due_at) < now && dayIn(new Date(a.due_at), tz) < today);
   const todays = rows.filter((a) => a.due_at && dayIn(new Date(a.due_at), tz) === today);
@@ -37,7 +48,7 @@ export default async function MyDayPage() {
   const undated = rows.filter((a) => !a.due_at);
   const completed = ((doneToday.data ?? []) as ActivityRow[]).filter((a) => a.completed_at && dayIn(new Date(a.completed_at), tz) === today);
 
-  const instIds = [...new Set([...rows, ...completed].map((a) => a.institution_id).concat((idleOpps.data ?? []).map((o) => o.institution_id)).filter(Boolean))] as string[];
+  const instIds = [...new Set([...rows, ...completed].map((a) => a.institution_id).concat([...(idleOpps.data ?? []), ...(lateOpps.data ?? [])].map((o) => o.institution_id)).filter(Boolean))] as string[];
   const { data: insts } = instIds.length ? await supabase.from("institutions").select("id, name").in("id", instIds) : { data: [] };
   const instName = new Map((insts ?? []).map((i) => [i.id, i.name]));
   const people = new Map([[me.id, "Yo"]]);
@@ -65,6 +76,31 @@ export default async function MyDayPage() {
               <li key={o.id} className="flex justify-between gap-2 py-2">
                 <Link href={`/oportunidades/${o.id}`} className="font-medium underline">{o.name}</Link>
                 <span className="text-muted-foreground">{instName.get(o.institution_id)} · {formatMoney(o.amount, o.currency_code)}</span>
+              </li>
+            ))}
+          </ul>
+        </Block>
+        <Block title="Cierre estimado ya pasó" count={lateOpps.data?.length ?? 0} tone="alert">
+          <p className="text-sm text-muted-foreground">Actualiza la fecha de cierre, avanza la etapa o márcala como perdida.</p>
+          <ul className="divide-y divide-border text-sm">
+            {(lateOpps.data ?? []).map((o) => (
+              <li key={o.id} className="flex justify-between gap-2 py-2">
+                <Link href={`/oportunidades/${o.id}`} className="font-medium underline">{o.name}</Link>
+                <span className="text-muted-foreground">{instName.get(o.institution_id)} · cierre {o.expected_close_date}</span>
+              </li>
+            ))}
+          </ul>
+        </Block>
+        <Block title="Instituciones para abrir oportunidad" count={prospects.length}>
+          <p className="text-sm text-muted-foreground">Tus instituciones sin oportunidad abierta con mejor puntaje.</p>
+          <ul className="divide-y divide-border text-sm">
+            {prospects.map((i) => (
+              <li key={i.id} className="flex justify-between gap-2 py-2">
+                <Link href={`/instituciones/${i.id}`} className="font-medium underline">{i.name}</Link>
+                <span className="flex gap-3">
+                  <span className="text-muted-foreground tabular-nums">Puntaje {i.s?.score ?? "—"}</span>
+                  <Link href={`/oportunidades/nueva?institucion=${i.id}`} className="underline">Crear oportunidad</Link>
+                </span>
               </li>
             ))}
           </ul>
