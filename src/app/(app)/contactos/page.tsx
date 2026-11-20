@@ -3,6 +3,7 @@ import { Field } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { decisionRoles } from "@/modules/institutions/labels";
 import { searchTerm } from "@/modules/institutions/schemas";
+import { buttonVariants } from "@/components/ui/button";
 
 export default async function ContactsPage({ searchParams }: PageProps<"/contactos">) {
   const q = searchTerm((await searchParams).q);
@@ -24,14 +25,14 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
       <h1 className="on-band page-header text-2xl font-semibold tracking-tight">Contactos</h1>
       <form role="search" className="flex max-w-md items-end gap-3">
         <Field label="Buscar" name="q" defaultValue={q} placeholder="Nombre o correo" className="flex-1" />
-        <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Buscar</button>
+        <button type="submit" className={buttonVariants({ variant: "outline" })}>Buscar</button>
       </form>
       {error ? (
         <p role="alert" className="text-sm text-red-700">No se pudieron cargar los contactos. Recarga la página.</p>
       ) : !contacts?.length ? (
         <p className="text-sm text-muted-foreground">{q ? "Ningún contacto coincide." : "Todavía no hay contactos. Agrégalos desde el expediente de una institución."}</p>
       ) : (
-        <table className="w-full text-left text-sm">
+        <div className="table-card"><table className="w-full text-left text-sm">
           <thead className="text-muted-foreground">
             <tr>{["Nombre", "Correo", "Teléfono", "Instituciones"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
           </thead>
@@ -52,7 +53,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );

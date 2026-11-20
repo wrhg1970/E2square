@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ACTIVITY_COLUMNS, type ActivityRow } from "@/modules/activities/activity-panel";
 import { activityTypes } from "@/modules/activities/labels";
 import { addDays, dayIn, weekStart, zonedToUtc } from "@/modules/activities/time";
+import { buttonVariants } from "@/components/ui/button";
 
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const uuid = (v: unknown) => (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v) ? v : null);
@@ -51,16 +52,16 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           <p className="text-sm text-muted-foreground">Semana del {dayLabel(start)} al {dayLabel(addDays(start, 6))}</p>
         </div>
         <nav aria-label="Semana" className="flex gap-1 text-sm">
-          <Link href={qs(addDays(start, -7))} className="rounded-md border border-border px-3 py-2 hover:bg-muted">← Anterior</Link>
-          <Link href={qs(weekStart(today))} className="rounded-md border border-border px-3 py-2 hover:bg-muted">Hoy</Link>
-          <Link href={qs(addDays(start, 7))} className="rounded-md border border-border px-3 py-2 hover:bg-muted">Siguiente →</Link>
+          <Link href={qs(addDays(start, -7))} className={buttonVariants({ variant: "outline" })}>← Anterior</Link>
+          <Link href={qs(weekStart(today))} className={buttonVariants({ variant: "outline" })}>Hoy</Link>
+          <Link href={qs(addDays(start, 7))} className={buttonVariants({ variant: "outline" })}>Siguiente →</Link>
         </nav>
       </div>
 
       <form className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="semana" value={start} />
         <SelectField label="Vendedor" name="vendedor" defaultValue={owner} options={(people ?? []).map((p) => ({ value: p.id, label: p.id === me.id ? "Yo" : p.full_name || p.email }))} />
-        <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Ver</button>
+        <button type="submit" className={buttonVariants({ variant: "outline" })}>Ver</button>
       </form>
 
       {error && <p role="alert" className="text-sm text-red-700">No se pudo cargar el calendario. Recarga la página.</p>}
@@ -69,8 +70,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {days.map((d) => {
           const items = rows.filter((a) => a.due_at && dayIn(new Date(a.due_at), tz) === d);
           return (
-            <section key={d} aria-label={dayLabel(d)} className={`min-h-28 space-y-2 rounded-xl border p-3 ${d === today ? "border-primary" : "border-border"}`}>
-              <h2 className={`text-sm capitalize ${d === today ? "font-semibold" : "text-muted-foreground"}`}>{dayLabel(d)}</h2>
+            <section key={d} aria-label={dayLabel(d)} className={`min-h-28 space-y-2 rounded-xl border bg-background p-3 shadow-sm ${d === today ? "border-primary ring-1 ring-primary" : "border-border"}`}>
+              <h2 className={`text-sm first-letter:uppercase ${d === today ? "font-semibold" : "text-muted-foreground"}`}>{dayLabel(d)}</h2>
               {items.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Libre</p>
               ) : (

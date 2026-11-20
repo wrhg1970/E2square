@@ -5,6 +5,7 @@ import { CURRENCIES } from "@/modules/catalog/labels";
 import { createGoal, deleteGoal } from "@/modules/goals/actions";
 import { GoalBar, type GoalProgress } from "@/modules/goals/goal-bar";
 import { goalMetrics } from "@/modules/goals/labels";
+import { formatDay } from "@/modules/activities/time";
 
 export default async function GoalsPage() {
   const supabase = await createClient();
@@ -38,11 +39,11 @@ export default async function GoalsPage() {
 
       <ul className="space-y-5">
         {rows.map((g) => (
-          <li key={g.id} className="space-y-1 rounded-xl border border-border bg-background shadow-sm p-4">
+          <li key={g.id} className="space-y-2 rounded-xl border border-border bg-background p-4 shadow-sm">
             <GoalBar g={g} />
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>
-                {goalMetrics[g.metric]} · {g.period_start} a {g.period_end} · Vendedor: {name(g.owner_id)} · Oficina:{" "}
+                {goalMetrics[g.metric]} · {formatDay(g.period_start)} a {formatDay(g.period_end)} · Vendedor: {name(g.owner_id)} · Oficina:{" "}
                 {name(g.office_id)} · Producto: {name(g.product_id)}
               </span>
               {canManage.data && (

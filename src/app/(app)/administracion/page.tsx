@@ -7,10 +7,12 @@ import { scoreFactors } from "@/modules/institutions/scoring";
 import { addExchangeRate, saveAutomation, updateScoreWeights, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
 import { automationRules } from "@/modules/admin/schemas";
 import { CURRENCIES } from "@/modules/catalog/labels";
+import { formatDay } from "@/modules/activities/time";
+import { buttonVariants } from "@/components/ui/button";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-4 border-t border-border pt-6">
+    <section className="space-y-4 border-t border-border pt-6 [.page-header+&]:border-t-0 [.page-header+&]:pt-0">
       <h2 className="text-lg font-semibold">{title}</h2>
       {children}
     </section>
@@ -20,7 +22,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Table({ headers, rows, empty }: { headers: string[]; rows: ReactNode[][]; empty: string }) {
   if (rows.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
-    <table className="w-full text-left text-sm">
+    <div className="table-card"><table className="w-full text-left text-sm">
       <thead className="text-muted-foreground">
         <tr>{headers.map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
       </thead>
@@ -31,7 +33,7 @@ function Table({ headers, rows, empty }: { headers: string[]; rows: ReactNode[][
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
 
@@ -69,7 +71,7 @@ export default async function AdminPage() {
     <div className="max-w-5xl space-y-8">
       <div className="on-band page-header flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Administración</h1>
-        <Link href="/administracion/bitacora" className="text-sm hover:underline">Bitácora de auditoría</Link>
+        <Link href="/administracion/bitacora" className={buttonVariants({ variant: "outline" })}>Bitácora de auditoría</Link>
       </div>
 
       {canStructure.data && org.data && (
@@ -108,7 +110,7 @@ export default async function AdminPage() {
             {Object.entries(automationRules).map(([key, rule]) => {
               const current = (automations.data ?? []).find((a) => a.key === key);
               return (
-                <li key={key} className="rounded-xl border border-border bg-background shadow-sm p-4">
+                <li key={key} className="rounded-xl border border-border bg-background p-4 shadow-sm">
                   <ActionForm action={saveAutomation} submitLabel="Guardar" className="flex flex-wrap items-end gap-4">
                     <input type="hidden" name="key" value={key} />
                     <label className="flex min-w-64 flex-1 items-start gap-2 text-sm">
@@ -130,7 +132,7 @@ export default async function AdminPage() {
         </p>
         <Table
           headers={["Vigente desde", "Tasa"]}
-          rows={(rates.data ?? []).map((r) => [r.effective_at, `1 ${r.base_currency} = ${Number(r.rate)} ${r.quote_currency}`])}
+          rows={(rates.data ?? []).map((r) => [formatDay(r.effective_at), `1 ${r.base_currency} = ${Number(r.rate)} ${r.quote_currency}`])}
           empty="Todavía no hay tipos de cambio."
         />
         {canStructure.data && (

@@ -9,11 +9,13 @@ export function ActionForm({
   submitLabel,
   children,
   className,
+  submitVariant,
 }: {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   submitLabel: string;
   children: ReactNode;
   className?: string;
+  submitVariant?: "default" | "outline";
 }) {
   const [state, formAction, pending] = useActionState(action, null);
   const ref = useRef<HTMLFormElement>(null);
@@ -34,7 +36,7 @@ export function ActionForm({
     >
       {children}
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant={submitVariant} disabled={pending}>
           {pending ? "Enviando…" : submitLabel}
         </Button>
         <p role="status" aria-live="polite" className="text-sm">

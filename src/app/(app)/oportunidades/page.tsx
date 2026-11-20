@@ -3,6 +3,8 @@ import { SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, opportunityStatuses, totalsByCurrency } from "@/modules/opportunities/labels";
 import { StageForm } from "@/modules/opportunities/stage-form";
+import { buttonVariants } from "@/components/ui/button";
+import { formatDay } from "@/modules/activities/time";
 
 type Opp = {
   id: string; name: string; institution_id: string; stage_id: string; owner_id: string | null; currency_code: string;
@@ -53,17 +55,17 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
             {totalsByCurrency(open, (o) => o.currency_code, (o) => (Number(o.amount) * o.probability) / 100)}
           </p>
         </div>
-        <Link href="/oportunidades/nueva" className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground">Nueva oportunidad</Link>
+        <Link href="/oportunidades/nueva" className={buttonVariants()}>Nueva oportunidad</Link>
       </div>
 
       <form className="flex flex-wrap items-end gap-3">
         <SelectField label="Producto" name="producto" defaultValue={product.id} options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))} />
         <input type="hidden" name="vista" value={view} />
         <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" name="mias" value="1" defaultChecked={mine} /> Solo mías</label>
-        <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Ver</button>
-        <nav aria-label="Vista" className="ml-auto flex gap-1 text-sm">
-          <Link href={qs({ vista: "kanban" })} aria-current={view === "kanban" ? "page" : undefined} className={`rounded-md px-3 py-2 ${view === "kanban" ? "bg-muted font-medium" : ""}`}>Kanban</Link>
-          <Link href={qs({ vista: "tabla" })} aria-current={view === "tabla" ? "page" : undefined} className={`rounded-md px-3 py-2 ${view === "tabla" ? "bg-muted font-medium" : ""}`}>Tabla</Link>
+        <button type="submit" className={buttonVariants({ variant: "outline" })}>Ver</button>
+        <nav aria-label="Vista" className="ml-auto flex gap-1 rounded-lg border border-border bg-background p-1 text-sm shadow-sm">
+          <Link href={qs({ vista: "kanban" })} aria-current={view === "kanban" ? "page" : undefined} className={`rounded-md px-3 py-1.5 ${view === "kanban" ? "bg-band font-semibold text-white" : "text-muted-foreground hover:text-foreground"}`}>Kanban</Link>
+          <Link href={qs({ vista: "tabla" })} aria-current={view === "tabla" ? "page" : undefined} className={`rounded-md px-3 py-1.5 ${view === "tabla" ? "bg-band font-semibold text-white" : "text-muted-foreground hover:text-foreground"}`}>Tabla</Link>
         </nav>
       </form>
 
@@ -74,7 +76,7 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
           {(stages ?? []).map((s) => {
             const cards = rows.filter((o) => o.stage_id === s.id && (o.status === "open" || s.is_won || s.is_lost));
             return (
-              <section key={s.id} aria-label={s.name} className="w-72 shrink-0 space-y-2 rounded-xl bg-muted/50 p-3">
+              <section key={s.id} aria-label={s.name} className="w-72 shrink-0 space-y-2 rounded-xl bg-muted p-3">
                 <header className="text-sm">
                   <p className="font-semibold">{s.name} <span className="font-normal text-muted-foreground">({cards.length})</span></p>
                   <p className="text-xs text-muted-foreground">{totalsByCurrency(cards, (o) => o.currency_code, (o) => Number(o.amount))}</p>
@@ -82,7 +84,7 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
                 {cards.map((o) => {
                   const late = s.sla_days && o.status === "open" && daysSince(o.stage_entered_at) > s.sla_days;
                   return (
-                    <article key={o.id} className="space-y-1 rounded-lg border border-border bg-background p-3 text-sm">
+                    <article key={o.id} className="space-y-1 rounded-lg border border-border bg-background p-3 text-sm shadow-sm">
                       <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
                       <p className="text-muted-foreground">{instName.get(o.institution_id)}</p>
                       <p>{formatMoney(o.amount, o.currency_code)} · {o.probability}%</p>
@@ -101,7 +103,7 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
       ) : !rows.length ? (
         <p className="text-sm text-muted-foreground">No hay oportunidades en este pipeline.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="table-card">
           <table className="w-full text-left text-sm">
             <thead className="text-muted-foreground">
               <tr>{["Oportunidad", "Institución", "Etapa", "Estado", "Monto", "Prob.", "Cierre estimado"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
@@ -115,7 +117,7 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
                   <td className="py-2 pr-4">{opportunityStatuses[o.status as keyof typeof opportunityStatuses]}</td>
                   <td className="py-2 pr-4">{formatMoney(o.amount, o.currency_code)}</td>
                   <td className="py-2 pr-4">{o.probability}%</td>
-                  <td className="py-2 pr-4">{o.expected_close_date ?? "—"}</td>
+                  <td className="py-2 pr-4">{o.expected_close_date ? formatDay(o.expected_close_date) : "—"}</td>
                 </tr>
               ))}
             </tbody>
