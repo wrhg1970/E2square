@@ -129,6 +129,17 @@ test("avisa antes de crear una institución duplicada", async ({ page }) => {
   await expect(page).toHaveURL(/\/instituciones\/nueva/);
 });
 
+test("la búsqueda de datos explica qué falta y no consulta redes internas", async ({ page }) => {
+  await page.goto("/instituciones/nueva");
+  const buscar = page.getByLabel("Buscar datos de la institución");
+  await buscar.fill("Colegio Americano de Puebla");
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await expect(page.getByText("Para buscar por nombre falta configurar la IA")).toBeVisible();
+  await buscar.fill("localhost.localdomain");
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await expect(page.getByText("No encontramos información")).toBeVisible();
+});
+
 test("el calendario muestra la actividad de la semana", async ({ page }) => {
   await page.goto("/calendario?semana=2030-01-14");
   await expect(page.getByRole("region", { name: /15 de ene/ }).getByText("Presentación a dirección").first()).toBeVisible();
