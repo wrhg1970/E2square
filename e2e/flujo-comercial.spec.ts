@@ -34,6 +34,16 @@ async function wonCount(page: import("@playwright/test").Page) {
   return Number(/(\d+) ganadas/.exec(text)?.[1] ?? NaN);
 }
 
+test("define el porcentaje de comisión del agente", async ({ page }) => {
+  await page.goto("/comisiones");
+  await page.getByLabel("Agente").selectOption({ label: E2E_USER.email });
+  await page.getByLabel("Producto").selectOption({ label: "IHS" });
+  await page.getByLabel("Porcentaje").fill("10");
+  await page.getByLabel("Calcular sobre").selectOption({ label: "Margen" });
+  await page.getByRole("button", { name: "Guardar porcentaje" }).click();
+  await expect(page.getByText("Porcentaje guardado.")).toBeVisible();
+});
+
 test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   const wonBefore = await wonCount(page);
   await page.goto("/instituciones/nueva");
@@ -88,6 +98,14 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   const csv = readFileSync(await (await download).path(), "utf8");
   expect(csv).toContain(institution);
   expect(csv).toContain("Ganada");
+});
+
+test("la venta ganada genera su comisión pendiente", async ({ page }) => {
+  await page.goto("/comisiones");
+  const row = page.getByRole("row").filter({ hasText: `IHS ${stamp}` });
+  await expect(row).toContainText("Margen: USD 600"); // venta 1,000 - costo 400
+  await expect(row.getByRole("cell", { name: "USD 60", exact: true })).toBeVisible(); // 10% del margen
+  await expect(row.getByRole("button", { name: "Aprobar" })).toHaveCount(0); // nadie aprueba la suya
 });
 
 test("avisa antes de crear una institución duplicada", async ({ page }) => {
