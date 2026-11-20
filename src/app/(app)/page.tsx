@@ -18,7 +18,7 @@ const uuid = (v: unknown) => (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-border p-4">
+    <div className="rounded-xl border border-border bg-background shadow-sm p-4">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
@@ -83,7 +83,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="on-band page-header flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Inicio</h1>
           <p className="text-sm text-muted-foreground">Cifras de tu cartera visible, en {m?.currency ?? "—"}. <Link href="/mi-dia" className="underline">Ir a Mi día</Link></p>

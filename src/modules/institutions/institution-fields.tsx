@@ -10,7 +10,7 @@ const SOURCES = ["Feria educativa", "Referido", "Sitio web", "Llamada en frío",
 
 function Group({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
   return (
-    <fieldset className={`space-y-3 rounded-xl border border-border p-4 ${className ?? ""}`}>
+    <fieldset className={`space-y-3 rounded-xl border border-border bg-background shadow-sm p-4 ${className ?? ""}`}>
       <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</legend>
       {children}
     </fieldset>
@@ -80,7 +80,7 @@ export function InstitutionFields({
 
         <TextareaField label="Notas" name="notes" defaultValue={v(values.notes)} maxLength={5000} placeholder="Interés, contexto, próximos pasos…" />
 
-        <details className="rounded-xl border border-border p-4">
+        <details className="rounded-xl border border-border bg-background shadow-sm p-4">
           <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">Datos fiscales y del grupo</summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Field label="Razón social" name="legal_name" defaultValue={v(values.legal_name)} />

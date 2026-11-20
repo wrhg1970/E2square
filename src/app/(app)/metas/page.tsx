@@ -28,7 +28,7 @@ export default async function GoalsPage() {
 
   return (
     <div className="max-w-5xl space-y-8">
-      <div>
+      <div className="on-band page-header">
         <h1 className="text-2xl font-semibold tracking-tight">Metas</h1>
         <p className="text-sm text-muted-foreground">El avance cuenta ventas ganadas (fecha de cierre) dentro del periodo y del alcance de cada meta.</p>
       </div>
@@ -38,7 +38,7 @@ export default async function GoalsPage() {
 
       <ul className="space-y-5">
         {rows.map((g) => (
-          <li key={g.id} className="space-y-1 rounded-xl border border-border p-4">
+          <li key={g.id} className="space-y-1 rounded-xl border border-border bg-background shadow-sm p-4">
             <GoalBar g={g} />
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>

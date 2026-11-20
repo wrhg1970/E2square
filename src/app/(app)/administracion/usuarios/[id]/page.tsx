@@ -38,7 +38,7 @@ export default async function UserPage({ params }: PageProps<"/administracion/us
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div>
+      <div className="on-band page-header">
         <Link href="/administracion" className="text-sm underline">← Administración</Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">{user.full_name || user.email}</h1>
         <p className="text-sm text-muted-foreground">{user.email} · {user.status === "active" ? "Activo" : "Inactivo (no puede entrar)"}</p>

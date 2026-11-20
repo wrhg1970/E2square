@@ -7,7 +7,7 @@ export default async function NewInstitutionPage() {
   const options = await loadInstitutionOptions(await createClient());
   return (
     <div className="max-w-6xl space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Nueva institución</h1>
+      <h1 className="on-band page-header text-2xl font-semibold tracking-tight">Nueva institución</h1>
       <ActionForm action={createInstitution} submitLabel="Crear institución">
         <InstitutionFields {...options} withContact />
         <label className="flex items-center gap-2 text-sm">

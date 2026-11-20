@@ -45,7 +45,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="on-band page-header flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Calendario</h1>
           <p className="text-sm text-muted-foreground">Semana del {dayLabel(start)} al {dayLabel(addDays(start, 6))}</p>

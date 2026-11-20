@@ -65,7 +65,7 @@ export default async function AdminPage() {
 
   return (
     <div className="max-w-5xl space-y-8">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
+      <div className="on-band page-header flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Administración</h1>
         <Link href="/administracion/bitacora" className="text-sm hover:underline">Bitácora de auditoría</Link>
       </div>
@@ -92,7 +92,7 @@ export default async function AdminPage() {
             {Object.entries(automationRules).map(([key, rule]) => {
               const current = (automations.data ?? []).find((a) => a.key === key);
               return (
-                <li key={key} className="rounded-xl border border-border p-4">
+                <li key={key} className="rounded-xl border border-border bg-background shadow-sm p-4">
                   <ActionForm action={saveAutomation} submitLabel="Guardar" className="flex flex-wrap items-end gap-4">
                     <input type="hidden" name="key" value={key} />
                     <label className="flex min-w-64 flex-1 items-start gap-2 text-sm">

@@ -36,7 +36,7 @@ export default async function InstitutionsPage({ searchParams }: PageProps<"/ins
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="on-band page-header flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Instituciones</h1>
         <div className="flex gap-2 text-sm">
           {canImport && <Link href="/instituciones/importar" className="rounded-md border border-border px-3 py-2 hover:bg-muted">Importar Excel</Link>}
