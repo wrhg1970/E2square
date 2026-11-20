@@ -71,8 +71,10 @@ Se usa la misma cuenta de Vercel de los otros proyectos (LetsGo, DLX-IHS).
 1. Vercel > **Add New… > Project** > importa `wrhg1970/E2square` (framework: Next.js, sin cambiar comandos).
 2. En **Environment Variables** agrega `NEXT_PUBLIC_SUPABASE_URL` (`https://rechaurextrdspfofeli.supabase.co`) y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (la llave anon/publishable de Supabase > Project Settings > API). Nunca la service_role.
 3. **Deploy**. Cada merge a `main` se publica solo; cada PR tiene su vista previa.
-4. En Supabase > Authentication > URL Configuration: **Site URL** = la URL de Vercel (por ejemplo `https://e2square.vercel.app`) y en **Redirect URLs** agrega `https://e2square.vercel.app/auth/callback` (y `https://*-wrhg1970s-projects.vercel.app/auth/callback` si quieres probar recuperación de contraseña en las vistas previas). Sin esto, el correo de "olvidé mi contraseña" manda a localhost.
+4. En Supabase > Authentication > URL Configuration: **Site URL** = la URL de Vercel (por ejemplo `https://e2square.vercel.app`) y en **Redirect URLs** agrega `https://e2square.vercel.app/auth/callback` (y `https://*-wrhg1970-1343s-projects.vercel.app/auth/callback` si quieres probar recuperación de contraseña en las vistas previas). Sin esto, el correo de "olvidé mi contraseña" manda a localhost.
 5. Antes de cada publicación con migraciones nuevas: `npx supabase db push --remote`.
+6. En Supabase > Project Settings > **Data API**, revisa que **Exposed schemas** incluya `public` (y `graphql_public`). Si queda vacío, el API no arranca (log de Postgres: `schema "pg_pgrst_no_exposed_schemas" does not exist`; en la app: error PGRST002 y "Sin acceso todavía" aunque el perfil esté bien).
+7. Correo (recuperar contraseña): el SMTP de fábrica de Supabase solo envía a miembros del equipo de Supabase. Configura SMTP propio en Authentication > Emails > SMTP Settings (Google Workspace: `smtp.gmail.com`, puerto 465, usuario de la cuenta y una contraseña de aplicación) y sube el límite en Authentication > Rate Limits.
 
 ## Google Workspace (Gmail y Calendar)
 App OAuth **interna** del Workspace (sirve para todos los dominios de la misma organización, sin revisión de Google).
