@@ -98,7 +98,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <Field label="Hasta" name="hasta" type="date" defaultValue={to} className="w-40" />
         <SelectField label="Vendedor" name="vendedor" defaultValue={owner ?? ""} options={opt(profiles.data)} />
         <SelectField label="Oficina" name="oficina" defaultValue={office ?? ""} options={opt(offices.data)} />
-        <SelectField label="Producto" name="producto" defaultValue={productId ?? ""} options={opt(products.data)} />
+        <SelectField label="Proveedor" name="producto" defaultValue={productId ?? ""} options={opt(products.data)} />
         <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Aplicar</button>
       </form>
 
@@ -126,15 +126,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
           <div className="grid gap-8 lg:grid-cols-2">
             <section className="space-y-3">
-              <h2 className="text-lg font-semibold">Venta ganada por producto</h2>
+              <h2 className="text-lg font-semibold">Venta ganada por proveedor</h2>
               {m.by_product.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin oportunidades en este filtro.</p>
               ) : (
                 <>
-                  <Bars label="Venta ganada por producto" rows={m.by_product.map((p) => ({ key: p.name, name: p.name, value: Number(p.won ?? 0), text: money(p.won) }))} />
+                  <Bars label="Venta ganada por proveedor" rows={m.by_product.map((p) => ({ key: p.name, name: p.name, value: Number(p.won ?? 0), text: money(p.won) }))} />
                   <table className="w-full text-sm">
-                    <caption className="sr-only">Detalle por producto</caption>
-                    <thead className="text-muted-foreground"><tr><th className="py-1 text-left font-medium">Producto</th><th className="text-right font-medium">Ganado</th><th className="text-right font-medium">Abierto</th><th className="text-right font-medium">Abiertas</th></tr></thead>
+                    <caption className="sr-only">Detalle por proveedor</caption>
+                    <thead className="text-muted-foreground"><tr><th className="py-1 text-left font-medium">Proveedor</th><th className="text-right font-medium">Ganado</th><th className="text-right font-medium">Abierto</th><th className="text-right font-medium">Abiertas</th></tr></thead>
                     <tbody>
                       {m.by_product.map((p) => (
                         <tr key={p.name} className="border-t border-border tabular-nums">

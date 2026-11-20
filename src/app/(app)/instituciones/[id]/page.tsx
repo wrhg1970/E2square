@@ -275,7 +275,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
         )}
         {oppRows.length > 0 && notOffered.length > 0 && (
           <div className="rounded-md bg-muted/60 p-3 text-sm">
-            <p className="font-medium">Productos que aún no le has ofrecido</p>
+            <p className="font-medium">Proveedores que aún no le has ofrecido</p>
             <ul className="mt-1 flex flex-wrap gap-2">
               {notOffered.map((p) => (
                 <li key={p.default_pipeline_id}>

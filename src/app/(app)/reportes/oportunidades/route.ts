@@ -52,7 +52,7 @@ export async function GET(request: Request) {
   const n = (id: string | null) => (id ? names.get(id) ?? "" : "");
 
   const body = toCsv([
-    ["Oportunidad", "Institución", "Producto", "Etapa", "Estado", "Responsable", "Moneda", "Monto", "Costo", "Margen", "Probabilidad", "Cierre estimado", "Cerrada", "Creada"],
+    ["Oportunidad", "Institución", "Proveedor", "Etapa", "Estado", "Responsable", "Moneda", "Monto", "Costo", "Margen", "Probabilidad", "Cierre estimado", "Cerrada", "Creada"],
     ...rows.map((r) => [
       r.name, n(r.institution_id), n(r.product_id), n(r.stage_id), opportunityStatuses[r.status as keyof typeof opportunityStatuses] ?? r.status,
       n(r.owner_id), r.currency_code, Number(r.amount), Number(r.cost), Number(r.margin), r.probability, r.expected_close_date,

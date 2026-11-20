@@ -28,10 +28,10 @@ export default async function NewOpportunityPage({ searchParams }: PageProps<"/o
             required
           />
           <SelectField
-            label="Producto (pipeline)"
+            label="Proveedor"
             name="pipeline_id"
             defaultValue={typeof producto === "string" ? producto : ""}
-            options={[{ value: "", label: "Elige un producto" }, ...(products ?? []).map((p) => ({ value: p.default_pipeline_id!, label: p.name }))]}
+            options={[{ value: "", label: "Elige un proveedor" }, ...(products ?? []).map((p) => ({ value: p.default_pipeline_id!, label: p.name }))]}
             required
           />
           <Field label="Nombre" name="name" placeholder="TOEFL ciclo 2027" required />

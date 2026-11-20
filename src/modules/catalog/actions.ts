@@ -15,7 +15,7 @@ const DEFAULT_STAGES = [
   { name: "Perdida", default_probability: 0, required_fields: ["loss_reason"], sla_days: null, is_won: false, is_lost: true },
 ];
 
-// Producto nuevo = producto + su pipeline con las etapas estándar (editables después).
+// Proveedor nuevo = proveedor + su pipeline con las etapas estándar. Producto nuevo = cuelga de un proveedor, sin pipeline.
 export async function createProduct(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = productSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -24,13 +24,17 @@ export async function createProduct(_prev: ActionState, formData: FormData): Pro
   if (!org) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
 
   const { data: product, error } = await supabase.from("products").insert({ ...parsed.data, organization_id: org }).select("id").single();
-  if (error) return { error: error.code === "23505" ? "Ya existe un producto con esa clave." : dbErrorMessage(error) };
+  if (error) return { error: error.code === "23505" ? "Ya existe un proveedor o producto con esa clave." : dbErrorMessage(error) };
+  if (parsed.data.supplier_id) {
+    revalidatePath(`/productos/${parsed.data.supplier_id}`);
+    return { success: "Producto agregado." };
+  }
   const { data: pipeline, error: pErr } = await supabase
     .from("pipelines")
     .insert({ organization_id: org, name: `Pipeline ${parsed.data.name}`, product_id: product.id })
     .select("id")
     .single();
-  if (pErr) return { error: `Producto creado, pero no su pipeline: ${dbErrorMessage(pErr)}` };
+  if (pErr) return { error: `Proveedor creado, pero no su pipeline: ${dbErrorMessage(pErr)}` };
   await supabase
     .from("pipeline_stages")
     .insert(DEFAULT_STAGES.map((s, i) => ({ ...s, organization_id: org, pipeline_id: pipeline.id, sort_order: i + 1 })));
@@ -46,7 +50,7 @@ export async function updateProduct(id: string, _prev: ActionState, formData: Fo
   const { data, error } = await supabase.from("products").update(parsed.data).eq("id", id).select("id");
   if (error) return { error: dbErrorMessage(error) };
   if (!data?.length) return { error: "No tienes permiso para editar el catálogo." };
-  revalidatePath(`/productos/${id}`);
+  revalidatePath("/productos", "layout");
   return { success: "Producto actualizado." };
 }
 

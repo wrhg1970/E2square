@@ -26,7 +26,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
     supabase.from("pipeline_stages").select("id, name, sort_order, is_won, is_lost, required_fields").eq("pipeline_id", opp.pipeline_id).order("sort_order"),
     supabase.from("opportunity_items").select("*").eq("opportunity_id", id).order("created_at"),
     supabase.from("opportunity_stage_history").select("id, from_stage_id, to_stage_id, changed_by, changed_at").eq("opportunity_id", id).order("changed_at", { ascending: false }),
-    supabase.from("products").select("id, name").eq("active", true).order("name"),
+    supabase.from("products").select("id, name, active, supplier_id, default_pipeline_id").order("name"),
     supabase.from("price_list_items").select("id, product_id, name, unit_name, unit_price, unit_cost, currency_code").eq("active", true).eq("currency_code", opp.currency_code),
     supabase.from("institution_contacts").select("contact_id").eq("institution_id", opp.institution_id),
     supabase.from("profiles").select("id, full_name, email").order("full_name"),
@@ -45,6 +45,11 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
 
   const stageName = new Map((stages.data ?? []).map((s) => [s.id, s.name]));
   const productName = new Map((products.data ?? []).map((p) => [p.id, p.name]));
+  // Productos que se pueden agregar: los activos del proveedor de esta oportunidad; si aún no tiene, el proveedor mismo.
+  const supplier = (products.data ?? []).find((p) => p.default_pipeline_id === opp.pipeline_id);
+  const offered = (products.data ?? []).filter((p) => p.active && supplier && p.supplier_id === supplier.id);
+  const itemOptions = offered.length ? offered : supplier ? [supplier] : [];
+  const listPrices = (prices.data ?? []).filter((p) => itemOptions.some((o) => o.id === p.product_id));
   const personName = new Map((owners.data ?? []).map((p) => [p.id, p.full_name || p.email]));
   const stage = (stages.data ?? []).find((s) => s.id === opp.stage_id);
   const isOpen = opp.status === "open";
@@ -121,13 +126,13 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
         {canWrite && isOpen && (
           <details className="rounded-md border border-border p-3">
             <summary className="cursor-pointer text-sm font-medium">Agregar producto ({opp.currency_code})</summary>
-            {(prices.data ?? []).length > 0 && (
+            {listPrices.length > 0 && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Precios de lista: {(prices.data ?? []).map((p) => `${productName.get(p.product_id)} – ${p.name}: ${formatMoney(p.unit_price, p.currency_code)}/${p.unit_name} (costo ${formatMoney(p.unit_cost, p.currency_code)})`).join(" · ")}
+                Precios de lista: {listPrices.map((p) => `${productName.get(p.product_id)} – ${p.name}: ${formatMoney(p.unit_price, p.currency_code)}/${p.unit_name} (costo ${formatMoney(p.unit_cost, p.currency_code)})`).join(" · ")}
               </p>
             )}
             <ActionForm action={addItem.bind(null, id)} submitLabel="Agregar" className="mt-3 grid gap-3 sm:grid-cols-6 sm:items-end">
-              <SelectField label="Producto" name="product_id" options={[{ value: "", label: "Elige" }, ...(products.data ?? []).map((p) => ({ value: p.id, label: p.name }))]} required className="sm:col-span-2" />
+              <SelectField label="Producto" name="product_id" options={[{ value: "", label: "Elige" }, ...itemOptions.map((p) => ({ value: p.id, label: p.name }))]} required className="sm:col-span-2" />
               <Field label="Cantidad" name="quantity" type="number" step="any" min={0} required />
               <Field label="Precio unitario" name="unit_price" type="number" step="0.01" min={0} required />
               <Field label="Desc. %" name="discount_pct" type="number" step="0.01" min={0} max={100} />
