@@ -37,3 +37,16 @@ export const exchangeRateSchema = z
     effective_at: z.iso.date("Fecha no válida"),
   })
   .refine((r) => r.base_currency !== r.quote_currency, "Elige dos monedas distintas");
+
+// Reglas sugeridas de AUTOMATIONS.md que hoy soporta la base (solo crean tareas internas).
+export const automationRules = {
+  first_contact: { title: "Primer contacto", when: "Al crear una oportunidad, programar una llamada de primer contacto para su dueño." },
+  won_handoff: { title: "Entrega a operación", when: "Al ganar una oportunidad, programar la tarea de entrega a operación." },
+  owner_change: { title: "Oportunidad reasignada", when: "Al cambiar el dueño, programar una revisión para el nuevo responsable." },
+} as const;
+
+export const automationSchema = z.object({
+  key: z.enum(Object.keys(automationRules) as [keyof typeof automationRules]),
+  enabled: z.preprocess((v) => v === "on", z.boolean()),
+  days: z.coerce.number().int("Usa días completos").min(0, "Mínimo 0 días").max(90, "Máximo 90 días"),
+});

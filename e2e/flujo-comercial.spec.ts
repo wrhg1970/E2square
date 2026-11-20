@@ -150,6 +150,21 @@ test("la bitácora muestra quién cambió los ámbitos", async ({ page }) => {
   await expect(row).not.toContainText("Sistema");
 });
 
+test("activa y desactiva una automatización", async ({ page }) => {
+  await page.goto("/administracion");
+  const rule = page.getByRole("listitem").filter({ hasText: "Primer contacto." });
+  await rule.getByRole("checkbox").check();
+  await rule.getByLabel("Vence en (días)").fill("2");
+  await rule.getByRole("button", { name: "Guardar" }).click();
+  await expect(rule.getByText("Regla activada.")).toBeVisible();
+  await page.reload();
+  await expect(rule.getByRole("checkbox")).toBeChecked();
+  await expect(rule.getByLabel("Vence en (días)")).toHaveValue("2");
+  await rule.getByRole("checkbox").uncheck();
+  await rule.getByRole("button", { name: "Guardar" }).click();
+  await expect(rule.getByText("Regla desactivada.")).toBeVisible();
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

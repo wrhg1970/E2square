@@ -5,7 +5,7 @@ import type { z } from "zod";
 import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
 import { CURRENCIES } from "@/modules/catalog/labels";
-import { businessUnitSchema, companySchema, exchangeRateSchema, invitationSchema, officeSchema } from "./schemas";
+import { automationSchema, businessUnitSchema, companySchema, exchangeRateSchema, invitationSchema, officeSchema } from "./schemas";
 
 // La autorización real la aplica RLS en la base; aquí solo validamos y traducimos errores.
 async function insertInto(table: string, schema: z.ZodType, formData: FormData, success: string): Promise<ActionState> {
@@ -55,6 +55,20 @@ export async function updateOrgSettings(_prev: ActionState, formData: FormData):
   if (!data?.length) return { error: "No tienes permiso para cambiar la configuración." };
   revalidatePath("/administracion");
   return { success: "Configuración guardada." };
+}
+
+export async function saveAutomation(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = automationSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data: orgId } = await supabase.rpc("current_org_id");
+  if (!orgId) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+  const { error } = await supabase
+    .from("automation_rules")
+    .upsert({ ...parsed.data, organization_id: orgId }, { onConflict: "organization_id,key" });
+  if (error) return { error: dbErrorMessage(error) };
+  revalidatePath("/administracion");
+  return { success: parsed.data.enabled ? "Regla activada." : "Regla desactivada." };
 }
 
 export async function addExchangeRate(_prev: ActionState, formData: FormData) {
