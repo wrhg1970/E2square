@@ -1,5 +1,6 @@
 import { Globe, Mail, MapPin, MessageCircle, Pencil, Phone, User } from "lucide-react";
 import Link from "next/link";
+import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
@@ -272,6 +273,10 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
           <p className="whitespace-pre-line text-sm">{inst.notes}</p>
         </Card>
       )}
+
+      <Card title="Documentos">
+        <DocumentsPanel institutionId={id} canWrite={Boolean(canWrite)} />
+      </Card>
 
       <Card title="Sucursales y grupo">
         {(branches.data ?? []).length === 0 && (members.data ?? []).length === 0 ? (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField, TextareaField } from "@/components/ui/field";
@@ -173,6 +174,10 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
             </form>
           </section>
         )}
+        <section className="space-y-3 rounded-xl border border-border p-5">
+          <h2 className="font-semibold">Documentos</h2>
+          <DocumentsPanel opportunityId={id} canWrite={Boolean(canWrite)} />
+        </section>
         <section className="space-y-3 rounded-xl border border-border p-5">
           <h2 className="font-semibold">Historial de etapas</h2>
           <ol className="space-y-2 text-sm">
