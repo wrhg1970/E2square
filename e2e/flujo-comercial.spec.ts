@@ -165,6 +165,14 @@ test("activa y desactiva una automatización", async ({ page }) => {
   await expect(rule.getByText("Regla desactivada.")).toBeVisible();
 });
 
+test("integraciones explica qué falta si Google no está configurado", async ({ page }) => {
+  await page.getByRole("link", { name: "Integraciones" }).first().click();
+  await expect(page.getByRole("heading", { name: "Integraciones" })).toBeVisible();
+  await expect(page.getByText("Pendiente: el administrador debe registrar las credenciales de Google")).toBeVisible();
+  await page.goto("/api/google/connect");
+  await expect(page.getByText("La integración con Google aún no está configurada")).toBeVisible();
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

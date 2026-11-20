@@ -74,6 +74,18 @@ Se usa la misma cuenta de Vercel de los otros proyectos (LetsGo, DLX-IHS).
 4. En Supabase > Authentication > URL Configuration: **Site URL** = la URL de Vercel (por ejemplo `https://e2square.vercel.app`) y en **Redirect URLs** agrega `https://e2square.vercel.app/auth/callback` (y `https://*-wrhg1970s-projects.vercel.app/auth/callback` si quieres probar recuperación de contraseña en las vistas previas). Sin esto, el correo de "olvidé mi contraseña" manda a localhost.
 5. Antes de cada publicación con migraciones nuevas: `npx supabase db push --remote`.
 
+## Google Workspace (Gmail y Calendar)
+App OAuth **interna** del Workspace (sirve para todos los dominios de la misma organización, sin revisión de Google).
+1. https://console.cloud.google.com → nuevo proyecto "E2Square CRM".
+2. APIs y servicios → Biblioteca: habilitar **Gmail API** y **Google Calendar API**.
+3. Google Auth Platform → Branding (nombre y correo de soporte) → Público: **Interno** → Acceso a datos: `openid`, `email`, `gmail.readonly`, `calendar.events`.
+4. Clientes → Crear cliente → Aplicación web, con URIs de redirección `https://e2square.vercel.app/api/google/callback` y `http://localhost:3000/api/google/callback`.
+5. En Vercel (Settings → Environment Variables) y en `.env.local`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_TOKEN_KEY`. La llave se genera en PowerShell con:
+   `$b = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`
+6. Redeploy en Vercel. Cada usuario conecta su cuenta en **Integraciones**.
+
+Se guarda solo remitente, destinatarios, asunto, fecha y extracto de los correos con contactos del CRM. El refresh token se cifra con AES-256-GCM antes de llegar a la base, y nadie (ni el admin) lee la conexión de otro usuario.
+
 ## Pruebas de base de datos
 Pruebas E2E en navegador (Playwright) contra Supabase **local**, nunca contra el remoto:
 ```powershell
