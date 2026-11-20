@@ -66,6 +66,14 @@ Controles antes de cada entrega: `npm run check` (lint + typecheck + pruebas).
 
 Los siguientes usuarios: regístralos en Administración > Invitaciones con su rol, créalos en Supabase igual que en el paso 3 y pídeles que definan su contraseña con **¿Olvidaste tu contraseña?**.
 
+## Publicar para el piloto (Vercel)
+Se usa la misma cuenta de Vercel de los otros proyectos (LetsGo, DLX-IHS).
+1. Vercel > **Add New… > Project** > importa `wrhg1970/E2square` (framework: Next.js, sin cambiar comandos).
+2. En **Environment Variables** agrega `NEXT_PUBLIC_SUPABASE_URL` (`https://rechaurextrdspfofeli.supabase.co`) y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (la llave anon/publishable de Supabase > Project Settings > API). Nunca la service_role.
+3. **Deploy**. Cada merge a `main` se publica solo; cada PR tiene su vista previa.
+4. En Supabase > Authentication > URL Configuration: **Site URL** = la URL de Vercel (por ejemplo `https://e2square.vercel.app`) y en **Redirect URLs** agrega `https://e2square.vercel.app/auth/callback` (y `https://*-wrhg1970s-projects.vercel.app/auth/callback` si quieres probar recuperación de contraseña en las vistas previas). Sin esto, el correo de "olvidé mi contraseña" manda a localhost.
+5. Antes de cada publicación con migraciones nuevas: `npx supabase db push --remote`.
+
 ## Pruebas de base de datos
 Pruebas E2E en navegador (Playwright) contra Supabase **local**, nunca contra el remoto:
 ```powershell

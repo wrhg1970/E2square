@@ -26,7 +26,7 @@ export default async function MyDayPage() {
   const dayStart = new Date(now.getTime() - 36 * 3_600_000).toISOString();
 
   const [pending, doneToday, idleOpps] = await Promise.all([
-    supabase.from("activities").select(ACTIVITY_COLUMNS).eq("owner_id", me.id).eq("status", "pending").lte("due_at", weekAhead).order("due_at").limit(200),
+    supabase.from("activities").select(ACTIVITY_COLUMNS).eq("owner_id", me.id).eq("status", "pending").or(`due_at.lte.${weekAhead},due_at.is.null`).order("due_at", { nullsFirst: false }).limit(200),
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("owner_id", me.id).eq("status", "done").gte("completed_at", dayStart).order("completed_at", { ascending: false }),
     supabase.from("opportunities").select("id, name, institution_id, amount, currency_code").eq("owner_id", me.id).eq("status", "open").is("next_activity_at", null).order("amount", { ascending: false }).limit(50),
   ]);
@@ -34,6 +34,7 @@ export default async function MyDayPage() {
   const overdue = rows.filter((a) => a.due_at && new Date(a.due_at) < now && dayIn(new Date(a.due_at), tz) < today);
   const todays = rows.filter((a) => a.due_at && dayIn(new Date(a.due_at), tz) === today);
   const upcoming = rows.filter((a) => a.due_at && dayIn(new Date(a.due_at), tz) > today);
+  const undated = rows.filter((a) => !a.due_at);
   const completed = ((doneToday.data ?? []) as ActivityRow[]).filter((a) => a.completed_at && dayIn(new Date(a.completed_at), tz) === today);
 
   const instIds = [...new Set([...rows, ...completed].map((a) => a.institution_id).concat((idleOpps.data ?? []).map((o) => o.institution_id)).filter(Boolean))] as string[];
@@ -69,6 +70,7 @@ export default async function MyDayPage() {
           </ul>
         </Block>
         <Block title="Próximos 7 días" count={upcoming.length}>{list(upcoming)}</Block>
+        <Block title="Sin fecha" count={undated.length}>{list(undated)}</Block>
         <Block title="Completadas hoy" count={completed.length}>{list(completed)}</Block>
       </div>
 
