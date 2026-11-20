@@ -32,7 +32,10 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("opportunity_id", id).order("due_at", { ascending: false }).limit(100),
     supabase.rpc("current_profile_id"),
   ]);
-  const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
+  const [{ data: me }, { data: canAudit }] = await Promise.all([
+    supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
+    supabase.rpc("has_permission", { permission: "audit.read" }),
+  ]);
   const tz = me?.timezone ?? "America/Mexico_City";
   const activities = ((acts.data ?? []) as ActivityRow[]).sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending"));
   const contactIds = (links.data ?? []).map((l) => l.contact_id);
@@ -179,7 +182,10 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
           <DocumentsPanel opportunityId={id} canWrite={Boolean(canWrite)} />
         </section>
         <section className="space-y-3 rounded-xl border border-border p-5">
-          <h2 className="font-semibold">Historial de etapas</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Historial de etapas</h2>
+            {canAudit && <Link href={`/administracion/bitacora?registro=${id}&desde=2000-01-01`} className="text-sm hover:underline">Ver bitácora de cambios</Link>}
+          </div>
           <ol className="space-y-2 text-sm">
             {(history.data ?? []).map((h) => (
               <li key={h.id}>
