@@ -21,6 +21,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="max-w-sm space-y-3 text-sm">
           <h1 className="text-xl font-semibold">Sin acceso todavía</h1>
           <p className="text-muted-foreground">Tu cuenta no tiene una invitación activa. Pide a un administrador que te invite.</p>
+          <p className="text-muted-foreground">Entraste como <span className="font-medium text-foreground">{auth.user.email}</span>.</p>
           <form action={signOut}>
             <button type="submit" className="underline">Cerrar sesión</button>
           </form>
