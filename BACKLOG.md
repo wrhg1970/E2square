@@ -62,7 +62,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 
 ## Fase 8 — Inteligencia
 - P2 Sales Copilot.
-- P2 Scoring explicable.
+- P2 Scoring explicable. Hecho: 7 factores por reglas (sin IA ni atributos sensibles), pesos en Administración, desglose y fecha en la ficha.
 - P2 Next Best Action.
 - P2 Cross-sell.
 - P2 Consultas analíticas en lenguaje natural.

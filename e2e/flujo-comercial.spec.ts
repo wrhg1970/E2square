@@ -63,6 +63,9 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   }
   await expect(page.getByRole("heading", { name: institution })).toBeVisible();
   await expect(page.getByText("Ana Pérez").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Puntaje/ })).toBeVisible();
+  await expect(page.getByText("Acceso a decisores")).toBeVisible();
+  await expect(page.getByText(/^Calculado:/)).toBeVisible();
 
   const instUrl = page.url();
   await page.goto(`/oportunidades/nueva?institucion=${instUrl.split("/").pop()}`);
@@ -163,6 +166,21 @@ test("activa y desactiva una automatización", async ({ page }) => {
   await rule.getByRole("checkbox").uncheck();
   await rule.getByRole("button", { name: "Guardar" }).click();
   await expect(rule.getByText("Regla desactivada.")).toBeVisible();
+});
+
+test("ajusta los pesos del puntaje y valida en servidor", async ({ page }) => {
+  await page.goto("/administracion");
+  const form = page.locator("section").filter({ hasText: "Puntaje de instituciones" });
+  await form.getByLabel("Urgencia").fill("12");
+  await form.getByRole("button", { name: "Guardar pesos" }).click();
+  await expect(form.getByText("Pesos del puntaje guardados.")).toBeVisible();
+  await page.reload();
+  await expect(form.getByLabel("Urgencia")).toHaveValue("12");
+  await form.getByLabel("Urgencia").fill("10");
+  await form.getByRole("button", { name: "Guardar pesos" }).click();
+  await expect(form.getByText("Pesos del puntaje guardados.")).toBeVisible();
+  await page.goto("/instituciones");
+  await expect(page.getByRole("columnheader", { name: "Puntaje" })).toBeVisible();
 });
 
 test("integraciones explica qué falta si Google no está configurado", async ({ page }) => {
