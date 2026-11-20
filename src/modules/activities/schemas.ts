@@ -9,6 +9,7 @@ export const activitySchema = z.object({
   activity_type: z.enum(Object.keys(activityTypes) as [keyof typeof activityTypes], "Elige un tipo"),
   subject: z.string().trim().min(2, "Escribe el asunto").max(200),
   due_local: opt(localDateTime),
+  reminder: opt(z.enum(["0", "15", "60", "1440"], "Elige un recordatorio válido")),
   priority: z.enum(Object.keys(priorities) as [keyof typeof priorities]).default("normal"),
   institution_id: opt(z.uuid()),
   opportunity_id: opt(z.uuid()),

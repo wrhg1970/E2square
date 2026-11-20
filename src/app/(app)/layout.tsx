@@ -39,7 +39,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     .select("id", { count: "exact", head: true })
     .eq("owner_id", profile.id)
     .eq("status", "pending")
-    .lt("due_at", endOfToday);
+    .or(`due_at.lt.${endOfToday},reminder_at.lte.${new Date().toISOString()}`);
 
   return (
     <div className="flex min-h-full w-full flex-col md:flex-row">

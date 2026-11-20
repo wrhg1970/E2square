@@ -45,6 +45,8 @@ export default async function MyDayPage() {
   const overdue = rows.filter((a) => a.due_at && new Date(a.due_at) < now && dayIn(new Date(a.due_at), tz) < today);
   const todays = rows.filter((a) => a.due_at && dayIn(new Date(a.due_at), tz) === today);
   const upcoming = rows.filter((a) => a.due_at && dayIn(new Date(a.due_at), tz) > today);
+  // Recordatorios ya vencidos de actividades de días futuros (las de hoy ya están en "Hoy").
+  const reminders = upcoming.filter((a) => a.reminder_at && new Date(a.reminder_at) <= now);
   const undated = rows.filter((a) => !a.due_at);
   const completed = ((doneToday.data ?? []) as ActivityRow[]).filter((a) => a.completed_at && dayIn(new Date(a.completed_at), tz) === today);
 
@@ -68,6 +70,7 @@ export default async function MyDayPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {reminders.length > 0 && <Block title="Recordatorios" count={reminders.length} tone="alert">{list(reminders)}</Block>}
         <Block title="Vencidas" count={overdue.length} tone="alert">{list(overdue)}</Block>
         <Block title="Hoy" count={todays.length}>{list(todays)}</Block>
         <Block title="Oportunidades sin próxima actividad" count={idleOpps.data?.length ?? 0} tone="alert">

@@ -132,6 +132,20 @@ test("el calendario muestra la actividad de la semana", async ({ page }) => {
   await expect(page.getByRole("region", { name: /15 de ene/ }).getByText("Presentación a dirección").first()).toBeVisible();
 });
 
+test("el recordatorio aparece en Mi día antes de la fecha", async ({ page }) => {
+  const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(Date.now() + 86_400_000);
+  await page.goto("/mi-dia");
+  await page.getByText("Tarea interna o actividad sin institución").click();
+  await page.getByLabel("Asunto").fill(`Recordar ${stamp}`);
+  await page.getByLabel("Fecha y hora").fill(`${tomorrow}T00:01`);
+  await page.getByLabel("Recordatorio").selectOption({ label: "1 día antes" });
+  await page.getByRole("button", { name: "Guardar actividad" }).click();
+  await expect(page.getByText("Actividad programada.")).toBeVisible();
+  await page.reload();
+  const block = page.locator("section").filter({ has: page.getByRole("heading", { name: /^Recordatorios/ }) });
+  await expect(block.getByText(`Recordar ${stamp}`)).toBeVisible();
+});
+
 test("en celular el menú lleva a Mi día", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByText("Menú").click();

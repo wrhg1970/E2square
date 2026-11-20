@@ -24,7 +24,7 @@ function refreshFor(a: { institution_id?: string | null; opportunity_id?: string
 export async function createActivity(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = activitySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { due_local, done, ...rest } = parsed.data;
+  const { due_local, done, reminder, ...rest } = parsed.data;
   if (!done && !due_local) return { error: "Indica la fecha y hora, o marca que ya se realizó." };
   const { supabase, profile } = await me();
   if (!profile) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
@@ -36,6 +36,9 @@ export async function createActivity(_prev: ActionState, formData: FormData): Pr
     created_by: profile.id,
     timezone: profile.timezone,
     due_at: due_local ? zonedToUtc(due_local, profile.timezone).toISOString() : new Date().toISOString(),
+    reminder_at: !done && due_local && reminder != null
+      ? new Date(zonedToUtc(due_local, profile.timezone).getTime() - Number(reminder) * 60_000).toISOString()
+      : null,
     status: done ? "done" : "pending",
   });
   if (error) return { error: dbErrorMessage(error) };

@@ -37,7 +37,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 - P0 Tareas y actividades.
 - P0 Mi día.
 - P0 Próxima actividad obligatoria configurable.
-- P1 Recordatorios.
+- P1 Recordatorios. Hecho: recordatorio opcional (a la hora, 15 min, 1 h, 1 día antes), aviso en el menú y bloque en Mi día. Sin correo ni push todavía.
 - P1 Calendario interno.
 
 ## Fase 5 — Dashboard y reportes
