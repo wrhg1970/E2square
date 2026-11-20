@@ -13,6 +13,8 @@ export const auditTables: Record<string, string> = {
   pipeline_stages: "Etapas",
   goals: "Metas",
   exchange_rates: "Tipos de cambio",
+  commissions: "Comisiones",
+  commission_rates: "Porcentajes de comisión",
   documents: "Documentos",
   profiles: "Usuarios",
   profile_roles: "Roles de usuario",
