@@ -49,7 +49,13 @@ npm run dev               # http://localhost:3000
 Controles antes de cada entrega: `npm run check` (lint + typecheck + pruebas).
 
 ## Primer administrador (proyecto de Supabase remoto)
-1. `npx supabase db push` para aplicar las migraciones.
+1. Aplica las migraciones al proyecto remoto (el CLI usa el stack local si no pasas `--remote`):
+   ```powershell
+   npx supabase login
+   npx supabase link --project-ref rechaurextrdspfofeli
+   npx supabase db push --remote
+   ```
+   Te pedirá la contraseña de la base (Supabase > Project Settings > Database). Repite solo `db push --remote` cada vez que se mergee una fase con migraciones nuevas.
 2. En el SQL Editor de Supabase ejecuta una sola vez (con tu correo):
    ```sql
    select public.bootstrap_organization('E2Square', 'e2square', 'tu-correo@dominio.com');

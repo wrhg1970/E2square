@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
-import { createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
+import { addExchangeRate, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
+import { CURRENCIES } from "@/modules/catalog/labels";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -31,9 +32,11 @@ function Table({ headers, rows, empty }: { headers: string[]; rows: ReactNode[][
   );
 }
 
+const currencyOptions = CURRENCIES.map((c) => ({ value: c, label: c }));
+
 export default async function AdminPage() {
   const supabase = await createClient();
-  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org] = await Promise.all([
+  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org, rates] = await Promise.all([
     supabase.from("companies").select("id, legal_name, tax_id, country_code, status").order("legal_name"),
     supabase.from("business_units").select("id, name, company_id").order("name"),
     supabase.from("offices").select("id, name, company_id, business_unit_id, country_code, timezone").order("name"),
@@ -43,7 +46,8 @@ export default async function AdminPage() {
     supabase.from("invitations").select("id, email, role_id, accepted_at").order("created_at", { ascending: false }),
     supabase.rpc("has_permission", { permission: "admin.structure" }),
     supabase.rpc("has_permission", { permission: "admin.users" }),
-    supabase.from("organizations").select("require_next_activity").maybeSingle(),
+    supabase.from("organizations").select("require_next_activity, reporting_currency").maybeSingle(),
+    supabase.from("exchange_rates").select("id, base_currency, quote_currency, rate, effective_at").order("effective_at", { ascending: false }).limit(50),
   ]);
 
   if (companies.error) {
@@ -67,9 +71,30 @@ export default async function AdminPage() {
               <input type="checkbox" name="require_next_activity" defaultChecked={org.data.require_next_activity} />
               Exigir próxima actividad: no se puede cerrar la última actividad pendiente de una oportunidad abierta sin programar otra
             </label>
+            <SelectField label="Moneda de reporte (dashboard y metas)" name="reporting_currency" defaultValue={org.data.reporting_currency}
+              options={currencyOptions} className="max-w-xs" />
           </ActionForm>
         </Section>
       )}
+
+      <Section title="Tipos de cambio">
+        <p className="text-sm text-muted-foreground">
+          Se usa la tasa vigente a la fecha de cierre de cada venta. Si falta una tasa, el dashboard lo avisa en vez de inventar la conversión.
+        </p>
+        <Table
+          headers={["Vigente desde", "Tasa"]}
+          rows={(rates.data ?? []).map((r) => [r.effective_at, `1 ${r.base_currency} = ${Number(r.rate)} ${r.quote_currency}`])}
+          empty="Todavía no hay tipos de cambio."
+        />
+        {canStructure.data && (
+          <ActionForm action={addExchangeRate} submitLabel="Agregar tasa" className="grid gap-3 sm:grid-cols-5 sm:items-end">
+            <SelectField label="1 unidad de" name="base_currency" defaultValue="USD" options={currencyOptions} />
+            <SelectField label="equivale en" name="quote_currency" defaultValue="MXN" options={currencyOptions} />
+            <Field label="Tasa" name="rate" type="number" step="0.00000001" min="0" required />
+            <Field label="Vigente desde" name="effective_at" type="date" required />
+          </ActionForm>
+        )}
+      </Section>
 
       <Section title="Empresas">
         <Table
