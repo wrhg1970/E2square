@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/modules/activities/time";
 import { disconnectGoogle, syncGmail } from "@/modules/google/actions";
 import { googleEnv } from "@/modules/google/config";
+import { aiEnv, DEFAULT_MODELS, providerLabel } from "@/modules/ai/config";
 
 const errors: Record<string, string> = {
   config: "La integración con Google aún no está configurada en el servidor.",
@@ -27,6 +28,8 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
   ]);
   const tz = me?.timezone ?? "America/Mexico_City";
   const error = typeof sp.error === "string" ? errors[sp.error] : undefined;
+
+  const ai = aiEnv();
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -59,6 +62,15 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
           <a href="/api/google/connect" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
             Conectar mi cuenta de Google
           </a>
+        )}
+      </section>
+
+      <section className="space-y-2 rounded-xl border border-border bg-background shadow-sm p-5">
+        <h2 className="font-semibold">Inteligencia artificial</h2>
+        {ai ? (
+          <p className="text-sm">Activa con {providerLabel[ai.AI_PROVIDER]} · modelo {ai.AI_MODEL ?? DEFAULT_MODELS[ai.AI_PROVIDER]}. Se usa en &ldquo;Resumen y riesgos&rdquo; de cada oportunidad, solo cuando alguien lo pide.</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Pendiente: el administrador debe elegir Gemini o Claude y registrar su clave en el servidor (ver README, sección IA).</p>
         )}
       </section>
 
