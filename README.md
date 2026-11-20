@@ -60,11 +60,20 @@ Controles antes de cada entrega: `npm run check` (lint + typecheck + pruebas).
    ```sql
    select public.bootstrap_organization('E2Square', 'e2square', 'tu-correo@dominio.com');
    ```
-3. En Authentication > Users usa **Add user > Create new user** con ese mismo correo, una contraseña temporal y *Auto Confirm User* activado. Después entra a la app, usa **¿Olvidaste tu contraseña?** y define tu contraseña definitiva. Quedas como Administrador.
+3. En Authentication > Users usa **Add user > Create new user** con ese mismo correo, una contraseña temporal y *Auto Confirm User* activado. Después entra a la app, usa **¿Olvidaste tu contraseña?** y define tu contraseña definitiva. Quedas como Administrador. El orden de los pasos 2 y 3 no importa: si el usuario ya existía, la invitación lo liga al momento (igual para usuarios que invites después desde Administración).
 4. En Authentication > Sign In / Providers desactiva **Allow new users to sign up** (solo se entra por invitación).
 5. En Authentication > URL Configuration agrega `http://localhost:3000/auth/callback` (y la URL de producción cuando exista) a Redirect URLs.
 
 Los siguientes usuarios: regístralos en Administración > Invitaciones con su rol, créalos en Supabase igual que en el paso 3 y pídeles que definan su contraseña con **¿Olvidaste tu contraseña?**.
 
 ## Pruebas de base de datos
+Pruebas E2E en navegador (Playwright) contra Supabase **local**, nunca contra el remoto:
+```powershell
+npx supabase start; npx supabase db reset
+npx playwright install chromium        # solo la primera vez
+$env:SUPABASE_SERVICE_ROLE_KEY = "<service_role de npx supabase status>"
+npm run e2e
+```
+Recorren login, alta de institución con contacto, aviso de duplicados, oportunidad con productos, actividad, cierre ganado, dashboard, exportación CSV y cierre de sesión. Tu `.env.local` debe apuntar al Supabase local mientras corren.
+
 `npx supabase test db` corre las pruebas pgTAP de `supabase/tests` (aislamiento entre organizaciones, permisos y auditoría).

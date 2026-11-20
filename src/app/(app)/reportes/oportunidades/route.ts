@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { zonedToUtc } from "@/modules/activities/time";
 import { opportunityStatuses } from "@/modules/opportunities/labels";
 import { toCsv } from "@/modules/reports/csv";
 
@@ -11,14 +12,19 @@ export async function GET(request: Request) {
   const from = isDate(sp.get("desde")), to = isDate(sp.get("hasta"));
   const owner = uuid(sp.get("vendedor")), office = uuid(sp.get("oficina")), product = uuid(sp.get("producto"));
   const supabase = await createClient();
+  const { data: meId } = await supabase.rpc("current_profile_id");
+  const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
+  const tz = me?.timezone ?? "America/Mexico_City";
+  // Límites del periodo en la zona del usuario (igual que el dashboard).
+  const dayAfter = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
   let q = supabase
     .from("opportunity_facts")
     .select("id, name, institution_id, owner_id, status, currency_code, amount, cost, margin, probability, expected_close_date, closed_at, created_at, stage_id, product_id")
     .order("created_at")
     .limit(10000);
-  if (to) q = q.lte("created_at", `${to}T23:59:59.999Z`);
-  if (from) q = q.or(`closed_at.is.null,closed_at.gte.${from}`);
+  if (to) q = q.lt("created_at", zonedToUtc(`${dayAfter(to)}T00:00`, tz).toISOString());
+  if (from) q = q.or(`closed_at.is.null,closed_at.gte.${zonedToUtc(`${from}T00:00`, tz).toISOString()}`);
   if (owner) q = q.eq("owner_id", owner);
   if (office) q = q.eq("office_id", office);
   if (product) q = q.eq("product_id", product);

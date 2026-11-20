@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, type ReactNode } from "react";
 import type { ActionState } from "@/lib/action-state";
 import { Button } from "./button";
 
@@ -16,8 +16,22 @@ export function ActionForm({
   className?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
+  const ref = useRef<HTMLFormElement>(null);
+  // React limpia el formulario tras cada envío; así solo se limpia si salió bien y no se pierde lo capturado ante un error.
+  useEffect(() => {
+    if (state?.success) ref.current?.reset();
+  }, [state]);
   return (
-    <form action={formAction} className={className ?? "flex flex-col gap-3"}>
+    <form
+      ref={ref}
+      action={formAction}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+        startTransition(() => formAction(data));
+      }}
+      className={className ?? "flex flex-col gap-3"}
+    >
       {children}
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>

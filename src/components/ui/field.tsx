@@ -21,7 +21,8 @@ export function SelectField({
   return (
     <label className={cn("flex flex-col gap-1 text-sm", className)}>
       <span className="font-medium">{label}</span>
-      <select className={control} {...props}>
+      {/* aria-label: sin esto el nombre accesible incluye el texto de la opción elegida. */}
+      <select aria-label={label} className={control} {...props}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
