@@ -1,13 +1,14 @@
-import { Briefcase, Building2, CalendarCheck, Home, Package, Settings, Target, Users } from "lucide-react";
+import { Briefcase, Building2, CalendarCheck, CalendarDays, Home, Package, Settings, Target, Users } from "lucide-react";
 
-// Solo módulos del MVP de enero 2027. `ready` se activa al terminar cada fase.
+// Módulos del MVP de enero 2027.
 export const navItems = [
-  { href: "/", label: "Inicio", icon: Home, ready: true },
-  { href: "/instituciones", label: "Instituciones", icon: Building2, ready: true },
-  { href: "/contactos", label: "Contactos", icon: Users, ready: true },
-  { href: "/oportunidades", label: "Oportunidades", icon: Briefcase, ready: true },
-  { href: "/productos", label: "Productos", icon: Package, ready: true },
-  { href: "/mi-dia", label: "Mi día", icon: CalendarCheck, ready: true },
-  { href: "/metas", label: "Metas", icon: Target, ready: true },
-  { href: "/administracion", label: "Administración", icon: Settings, ready: true },
+  { href: "/", label: "Inicio", icon: Home },
+  { href: "/instituciones", label: "Instituciones", icon: Building2 },
+  { href: "/contactos", label: "Contactos", icon: Users },
+  { href: "/oportunidades", label: "Oportunidades", icon: Briefcase },
+  { href: "/productos", label: "Productos", icon: Package },
+  { href: "/mi-dia", label: "Mi día", icon: CalendarCheck },
+  { href: "/calendario", label: "Calendario", icon: CalendarDays },
+  { href: "/metas", label: "Metas", icon: Target },
+  { href: "/administracion", label: "Administración", icon: Settings },
 ] as const;

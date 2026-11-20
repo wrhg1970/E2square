@@ -99,6 +99,18 @@ test("avisa antes de crear una institución duplicada", async ({ page }) => {
   await expect(page).toHaveURL(/\/instituciones\/nueva/);
 });
 
+test("el calendario muestra la actividad de la semana", async ({ page }) => {
+  await page.goto("/calendario?semana=2030-01-14");
+  await expect(page.getByRole("region", { name: /15 de ene/ }).getByText("Presentación a dirección").first()).toBeVisible();
+});
+
+test("en celular el menú lleva a Mi día", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByText("Menú").click();
+  await page.getByRole("link", { name: /Mi día/ }).first().click();
+  await expect(page.getByRole("heading", { name: "Mi día" })).toBeVisible();
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

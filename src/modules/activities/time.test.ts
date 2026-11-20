@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayIn, utcToLocalInput, zonedToUtc } from "./time";
+import { dayIn, utcToLocalInput, zonedToUtc, addDays, weekStart } from "./time";
 
 describe("zonas horarias", () => {
   it("convierte hora local a UTC (CDMX sin horario de verano, UTC-6)", () => {
@@ -16,5 +16,14 @@ describe("zonas horarias", () => {
   });
   it("rechaza formatos inválidos", () => {
     expect(() => zonedToUtc("20/11/2026", "America/Mexico_City")).toThrow();
+  });
+});
+
+describe("semanas", () => {
+  it("encuentra el lunes y cruza meses", () => {
+    expect(weekStart("2026-11-19")).toBe("2026-11-16");
+    expect(weekStart("2026-11-16")).toBe("2026-11-16");
+    expect(weekStart("2026-11-22")).toBe("2026-11-16");
+    expect(addDays("2026-12-28", 7)).toBe("2027-01-04");
   });
 });
