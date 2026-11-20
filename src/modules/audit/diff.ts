@@ -1,0 +1,40 @@
+type Json = Record<string, unknown> | null;
+
+// Campos técnicos que cambian en cada escritura y no aportan a la auditoría.
+const NOISE = new Set(["updated_at", "created_at", "organization_id", "search_vector"]);
+
+export const auditTables: Record<string, string> = {
+  institutions: "Instituciones",
+  contacts: "Contactos",
+  opportunities: "Oportunidades",
+  opportunity_items: "Líneas de oportunidad",
+  products: "Productos",
+  price_list_items: "Lista de precios",
+  pipeline_stages: "Etapas",
+  goals: "Metas",
+  exchange_rates: "Tipos de cambio",
+  documents: "Documentos",
+  profiles: "Usuarios",
+  profile_roles: "Roles de usuario",
+  user_scopes: "Ámbitos",
+  role_permissions: "Permisos",
+  organizations: "Organización",
+  "export:oportunidades": "Exportación",
+};
+
+export const actionLabels: Record<string, string> = { INSERT: "Alta", UPDATE: "Cambio", DELETE: "Baja" };
+
+const show = (v: unknown) => (v === null || v === undefined || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
+
+// Lista "campo: antes → después" de lo que cambió; en altas/bajas, los valores presentes.
+export function changes(oldData: Json, newData: Json): string[] {
+  if (oldData && newData) {
+    return Object.keys(newData)
+      .filter((k) => !NOISE.has(k) && JSON.stringify(oldData[k]) !== JSON.stringify(newData[k]))
+      .map((k) => `${k}: ${show(oldData[k])} → ${show(newData[k])}`);
+  }
+  const row = newData ?? oldData ?? {};
+  return Object.keys(row)
+    .filter((k) => !NOISE.has(k) && k !== "id" && row[k] !== null && row[k] !== "")
+    .map((k) => `${k}: ${show(row[k])}`);
+}

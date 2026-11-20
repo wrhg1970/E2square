@@ -122,6 +122,16 @@ test("administra ámbitos y no permite auto-bloquearse", async ({ page }) => {
   await expect(page.getByText("Solo su propia cartera.")).toBeVisible();
 });
 
+test("la bitácora muestra quién cambió los ámbitos", async ({ page }) => {
+  await page.goto("/administracion");
+  await page.getByRole("link", { name: "Bitácora de auditoría" }).click();
+  await page.getByLabel("Módulo").selectOption({ label: "Ámbitos" });
+  await page.getByRole("button", { name: "Aplicar" }).click();
+  const row = page.getByRole("row").filter({ hasText: "Baja" }).first();
+  await expect(row).toContainText("scope_type: organization");
+  await expect(row).not.toContainText("Sistema");
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

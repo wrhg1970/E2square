@@ -63,7 +63,10 @@ export default async function AdminPage() {
 
   return (
     <div className="max-w-5xl space-y-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Administración</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Administración</h1>
+        <Link href="/administracion/bitacora" className="text-sm hover:underline">Bitácora de auditoría</Link>
+      </div>
 
       {canStructure.data && org.data && (
         <Section title="Reglas comerciales">

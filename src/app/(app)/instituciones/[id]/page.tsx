@@ -67,7 +67,10 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("institution_id", id).order("due_at", { ascending: false }).limit(100),
     supabase.rpc("current_profile_id"),
   ]);
-  const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
+  const [{ data: me }, { data: canAudit }] = await Promise.all([
+    supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
+    supabase.rpc("has_permission", { permission: "audit.read" }),
+  ]);
   const tz = me?.timezone ?? "America/Mexico_City";
   const activities = (acts.data ?? []) as ActivityRow[];
   const pendingActs = activities.filter((a) => a.status === "pending").sort((a, b) => (a.due_at ?? "").localeCompare(b.due_at ?? ""));
@@ -130,6 +133,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
           {parent.data && (
             <span>Grupo: <Link href={`/instituciones/${parent.data.id}`} className="underline">{parent.data.name}</Link></span>
           )}
+          {canAudit && <Link href={`/administracion/bitacora?registro=${id}&desde=2000-01-01`} className="underline">Bitácora de cambios</Link>}
         </p>
         </div>
         {openOpps.length > 0 && (
