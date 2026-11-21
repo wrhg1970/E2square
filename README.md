@@ -88,6 +88,25 @@ App OAuth **interna** del Workspace (sirve para todos los dominios de la misma o
 
 Se guarda solo remitente, destinatarios, asunto, fecha y extracto de los correos con contactos del CRM. El refresh token se cifra con AES-256-GCM antes de llegar a la base, y nadie (ni el admin) lee la conexión de otro usuario.
 
+## WhatsApp Business (API oficial de Meta)
+
+Lo que un contacto escribe al número de la empresa queda en la ficha de su institución (se reconoce por los últimos 10 dígitos del teléfono). Desde la ficha también se envían mensajes. No usa WhatsApp Web ni guarda contraseñas.
+
+Reglas de envío. Las aplica la base, no la pantalla:
+- **Mensaje libre**: solo dentro de las 24 h desde el último mensaje del contacto, que es la ventana de servicio de Meta.
+- **Fuera de esa ventana**: solo plantillas aprobadas en WhatsApp Manager y registradas en Integraciones, y solo a contactos con consentimiento registrado. El consentimiento se marca en la ficha, con cómo lo autorizó, y queda en la bitácora.
+- **"No contactar"**: no recibe nada. Si el contacto responde BAJA, STOP, ALTO o CANCELAR, se marca así automáticamente.
+- **Lada**: un teléfono de 10 dígitos en una institución de México se envía con lada 52. Otros países necesitan la lada internacional.
+
+1. En https://developers.facebook.com crea una app de tipo Business con el producto WhatsApp, ligada al portafolio de negocio de la empresa, y registra el número.
+2. En Meta › WhatsApp › API Setup copia el **Phone number ID**; en App settings › Basic copia el **App Secret**.
+3. En el CRM: Integraciones › WhatsApp › "Conectar o actualizar un número" (solo administradores). Al guardar aparece un **token de verificación**, que se muestra una sola vez.
+4. En Meta › WhatsApp › Configuration › Webhook: Callback URL `https://e2square.vercel.app/api/whatsapp/webhook`, Verify token = el token del paso 3. Suscribe el campo `messages`.
+5. Para enviar, crea en Meta Business Settings › System users un usuario de sistema con permiso `whatsapp_business_messaging`. Genera su token y agrégalo en Vercel como `WHATSAPP_ACCESS_TOKEN` (Production y Preview); luego haz Redeploy.
+6. Registra en Integraciones las plantillas ya aprobadas, con el mismo nombre e idioma que en Meta.
+
+El App Secret se guarda en la base en una tabla que ningún usuario puede leer, y con él la base verifica la firma de cada aviso de Meta. Un mensaje sin firma válida se rechaza. Si Meta reenvía un aviso, el mensaje no se duplica. Los estados enviado, entregado, leído y falló llegan por el mismo webhook. Recibir no necesita variables en Vercel; enviar necesita solo el token del paso 5.
+
 ## Inteligencia artificial (Gemini o Claude)
 
 La IA es opcional y se activa solo en el servidor. Mientras no esté configurada, la app funciona igual y muestra "pendiente".
