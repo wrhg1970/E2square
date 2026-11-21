@@ -272,6 +272,26 @@ test("conecta WhatsApp y registra solo mensajes firmados por Meta", async ({ pag
   await expect(page.getByText("Enviar WhatsApp")).toHaveCount(0);
 });
 
+test("crea un proveedor con sus productos y los busca", async ({ page }) => {
+  const code = `E2E${String(stamp).slice(-6)}`;
+  await page.getByRole("link", { name: "Proveedores" }).first().click();
+  await expect(page.getByRole("heading", { name: "Proveedores" })).toBeVisible();
+  await page.getByText("Agregar proveedor").click();
+  await page.getByLabel("Clave").fill(code);
+  await page.getByLabel("Nombre").fill(`Proveedor ${code}`);
+  await page.getByRole("button", { name: "Crear proveedor" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: `Proveedor ${code}` })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Productos (0)" })).toBeVisible();
+  const add = page.locator("details").filter({ hasText: "Agregar producto" });
+  await add.getByLabel("Clave").fill(`${code}-A`);
+  await add.getByLabel("Nombre").fill(`Curso ${code}`);
+  await add.getByRole("button", { name: "Agregar producto" }).click();
+  await expect(page.getByRole("heading", { name: "Productos (1)" })).toBeVisible();
+  await page.goto(`/productos?q=curso ${code.toLowerCase()}`);
+  await expect(page.getByRole("link", { name: `Proveedor ${code}` })).toBeVisible();
+  await expect(page.getByRole("link", { name: "IHS", exact: true })).toHaveCount(0);
+});
+
 test("integraciones explica qué falta si Google no está configurado", async ({ page }) => {
   await page.getByRole("link", { name: "Integraciones" }).first().click();
   await expect(page.getByRole("heading", { name: "Integraciones" })).toBeVisible();
