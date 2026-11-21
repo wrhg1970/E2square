@@ -71,7 +71,7 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
 
   const instUrl = page.url();
   await page.goto(`/oportunidades/nueva?institucion=${instUrl.split("/").pop()}`);
-  await page.getByLabel("Producto (pipeline)").selectOption({ label: "IHS" });
+  await page.getByLabel("Proveedor").selectOption({ label: "IHS" });
   await page.getByLabel("Nombre", { exact: true }).fill(`IHS ${stamp}`);
   await page.getByLabel("Moneda").selectOption("USD");
   await page.getByLabel("Cierre estimado").fill(new Date().toISOString().slice(0, 10));
@@ -107,11 +107,11 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   expect(csv).toContain("Ganada");
 
   await page.goto(instUrl);
-  const offer = page.getByText("Productos que aún no le has ofrecido").locator("..");
+  const offer = page.getByText("Proveedores que aún no le has ofrecido").locator("..");
   await expect(offer).toBeVisible();
   await expect(offer.getByRole("link", { name: "IHS" })).toHaveCount(0);
   await offer.getByRole("link").first().click();
-  await expect(page.getByLabel("Producto (pipeline)")).not.toHaveValue("");
+  await expect(page.getByLabel("Proveedor")).not.toHaveValue("");
 });
 
 test("la venta ganada genera su comisión pendiente", async ({ page }) => {
@@ -129,6 +129,17 @@ test("avisa antes de crear una institución duplicada", async ({ page }) => {
   await page.getByRole("button", { name: "Crear institución" }).click();
   await expect(page.getByText("Puede que esta institución ya exista")).toBeVisible();
   await expect(page).toHaveURL(/\/instituciones\/nueva/);
+});
+
+test("la búsqueda de datos explica qué falta y no consulta redes internas", async ({ page }) => {
+  await page.goto("/instituciones/nueva");
+  const buscar = page.getByLabel("Buscar datos de la institución");
+  await buscar.fill("Colegio Americano de Puebla");
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await expect(page.getByText("Para buscar por nombre falta configurar la IA")).toBeVisible();
+  await buscar.fill("localhost.localdomain");
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await expect(page.getByText("No encontramos información")).toBeVisible();
 });
 
 test("el calendario muestra la actividad de la semana", async ({ page }) => {

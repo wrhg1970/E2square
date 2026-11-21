@@ -123,6 +123,8 @@ La licencia de Gemini en Google Workspace no da acceso para aplicaciones: se nec
 
 Cambiar de proveedor es cambiar esas variables; no hay que tocar código. La IA solo recibe los datos de la oportunidad que el usuario ya puede ver, se ejecuta cuando alguien la pide y no guarda nada. Cada consulta tiene un costo pequeño por uso con el proveedor.
 
+**Buscar datos de una institución** (Nueva institución › Buscar): con un sitio web, el servidor lee lo que el propio sitio publica (nombre, teléfono, correo, dirección, redes) sin necesitar clave. Con la IA activa, además busca en internet por nombre o sitio y, si hay varias coincidencias, las muestra para elegir. Nada se guarda hasta que el usuario revisa y pulsa "Crear institución". Con Claude, la búsqueda web debe estar permitida en la consola de Anthropic (Settings › Privacy/Web search); cada búsqueda web tiene un costo adicional por uso.
+
 ## Pruebas de base de datos
 Pruebas E2E en navegador (Playwright) contra Supabase **local**, nunca contra el remoto:
 ```powershell

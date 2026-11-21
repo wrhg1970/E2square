@@ -18,7 +18,7 @@ UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; so
 - institution_branches(id, institution_id, name, address, city, country_code)
 - contacts(id, organization_id, first_name, last_name, email, phone, preferred_language, consent_status)
 - institution_contacts(id, institution_id, contact_id, job_title, department, decision_role, is_primary)
-- products(id, organization_id, company_id, business_unit_id, code, name, description, revenue_model, default_pipeline_id, active)
+- products(id, organization_id, company_id, business_unit_id, supplier_id, code, name, description, revenue_model, default_pipeline_id, active). Un registro sin supplier_id es un **proveedor** (tiene el pipeline); con supplier_id es un producto de ese proveedor (sin pipeline, un solo nivel). Las líneas de oportunidad usan productos del proveedor de su pipeline.
 - price_books(id, product_id, name, currency_code, valid_from, valid_to, version)
 - price_book_items(id, price_book_id, unit_price, unit_cost, unit_name)
 - pipelines(id, organization_id, name, product_id, business_unit_id, active)
