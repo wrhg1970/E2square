@@ -33,7 +33,7 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
     supabase.rpc("has_permission", { permission: "commissions.approve" }),
     supabase.rpc("current_profile_id"),
     supabase.from("profiles").select("id, full_name, email, status, timezone").order("full_name"),
-    supabase.from("products").select("id, name").order("name"),
+    supabase.from("products").select("id, name, supplier_id").order("name"),
   ]);
   if (list.error) return <p role="alert" className="text-sm text-red-700">No se pudieron cargar las comisiones. Recarga la página.</p>;
 
@@ -42,7 +42,8 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
   const { data: opps } = oppIds.length ? await supabase.from("opportunities").select("id, name").in("id", oppIds) : { data: [] };
   const oppName = new Map((opps ?? []).map((o) => [o.id, o.name]));
   const person = new Map((profiles.data ?? []).map((p) => [p.id, p.full_name || p.email]));
-  const productName = new Map((products.data ?? []).map((p) => [p.id, p.name]));
+  const rawName = new Map((products.data ?? []).map((p) => [p.id, p.name]));
+  const productName = new Map((products.data ?? []).map((p) => [p.id, p.supplier_id ? `${rawName.get(p.supplier_id)} · ${p.name}` : p.name]));
   const tz = (profiles.data ?? []).find((p) => p.id === meId.data)?.timezone ?? "America/Mexico_City";
   const total = totalsByCurrency(rows, (r) => r.currency_code, (r) => Number(r.amount));
   const sortedRates = [...(rates.data ?? [])].sort((a, b) =>
@@ -164,7 +165,7 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
             <SelectField label="Agente" name="profile_id" options={[{ value: "", label: "Elige un agente" },
               ...(profiles.data ?? []).filter((p) => p.status === "active").map((p) => ({ value: p.id, label: p.full_name || p.email }))]} />
             <SelectField label="Producto" name="product_id" options={[{ value: "", label: "Elige un producto" },
-              ...(products.data ?? []).map((p) => ({ value: p.id, label: p.name }))]} />
+              ...(products.data ?? []).map((p) => ({ value: p.id, label: productName.get(p.id)! })).sort((a, b) => a.label.localeCompare(b.label))]} />
             <Field label="Porcentaje" name="rate_pct" type="number" min="0.01" max="100" step="0.01" required />
             <SelectField label="Calcular sobre" name="basis" options={Object.entries(commissionBases).map(([value, label]) => ({ value, label }))} />
           </ActionForm>

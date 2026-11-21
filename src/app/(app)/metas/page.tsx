@@ -14,7 +14,7 @@ export default async function GoalsPage() {
     supabase.rpc("has_permission", { permission: "goals.manage" }),
     supabase.from("profiles").select("id, full_name, email").eq("status", "active").order("full_name"),
     supabase.from("offices").select("id, name").order("name"),
-    supabase.from("products").select("id, name").eq("active", true).order("name"),
+    supabase.from("products").select("id, name").eq("active", true).is("supplier_id", null).order("name"),
   ]);
   const rows = (goals.data ?? []) as GoalProgress[];
   const names = new Map<string, string>([
@@ -69,7 +69,7 @@ export default async function GoalsPage() {
             <Field label="Hasta" name="period_end" type="date" required />
             <SelectField label="Vendedor" name="owner_id" options={opt(profiles.data)} />
             <SelectField label="Oficina" name="office_id" options={opt(offices.data)} />
-            <SelectField label="Producto" name="product_id" options={opt(products.data)} />
+            <SelectField label="Proveedor" name="product_id" options={opt(products.data)} />
           </ActionForm>
         </section>
       )}

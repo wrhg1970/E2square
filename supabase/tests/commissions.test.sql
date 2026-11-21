@@ -15,13 +15,18 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-000000000002', 'rep2@test.dev'),
   ('00000000-0000-0000-0000-00000000000d', 'dir@test.dev');
 
+-- Las líneas de una oportunidad son productos de su proveedor (TOEFL): EVAL e IHS se simulan como productos de TOEFL.
+insert into public.products (organization_id, code, name, supplier_id)
+select p.organization_id, x.c, x.n, p.id from public.products p, (values ('EVAL-T', 'Evaluación TOEFL'), ('IHS-T', 'IHS TOEFL')) x(c, n)
+where p.code = 'TOEFL';
+
 create temp table ids as
 select o.id as org,
   (select id from public.profiles where email = 'rep1@test.dev') as rep1,
   (select id from public.profiles where email = 'dir@test.dev') as dir,
   (select id from public.products where organization_id = o.id and code = 'TOEFL') as toefl,
-  (select id from public.products where organization_id = o.id and code = 'EVAL') as eval,
-  (select id from public.products where organization_id = o.id and code = 'IHS') as ihs,
+  (select id from public.products where organization_id = o.id and code = 'EVAL-T') as eval,
+  (select id from public.products where organization_id = o.id and code = 'IHS-T') as ihs,
   (select default_pipeline_id from public.products where organization_id = o.id and code = 'TOEFL') as pipeline
 from public.organizations o where o.slug = 'org-a';
 alter table ids add column neg uuid, add column won uuid;
