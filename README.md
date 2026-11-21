@@ -88,6 +88,17 @@ App OAuth **interna** del Workspace (sirve para todos los dominios de la misma o
 
 Se guarda solo remitente, destinatarios, asunto, fecha y extracto de los correos con contactos del CRM. El refresh token se cifra con AES-256-GCM antes de llegar a la base, y nadie (ni el admin) lee la conexión de otro usuario.
 
+## WhatsApp Business (API oficial de Meta)
+
+Por ahora solo **recibe** mensajes: lo que un contacto escribe al número de la empresa queda en la ficha de su institución (se reconoce por los últimos 10 dígitos del teléfono). No usa WhatsApp Web ni guarda contraseñas.
+
+1. En https://developers.facebook.com crea una app de tipo Business con el producto WhatsApp, ligada al portafolio de negocio de la empresa, y registra el número.
+2. En Meta › WhatsApp › API Setup copia el **Phone number ID**; en App settings › Basic copia el **App Secret**.
+3. En el CRM: Integraciones › WhatsApp › "Conectar o actualizar un número" (solo administradores). Al guardar aparece un **token de verificación**, que se muestra una sola vez.
+4. En Meta › WhatsApp › Configuration › Webhook: Callback URL `https://e2square.vercel.app/api/whatsapp/webhook`, Verify token = el token del paso 3. Suscribe el campo `messages`.
+
+El App Secret se guarda en la base en una tabla que ningún usuario puede leer, y con él la base verifica la firma de cada aviso de Meta. Un mensaje sin firma válida se rechaza. Si Meta reenvía un aviso, el mensaje no se duplica. No hay que poner variables en Vercel.
+
 ## Inteligencia artificial (Gemini o Claude)
 
 La IA es opcional y se activa solo en el servidor. Mientras no esté configurada, la app funciona igual y muestra "pendiente".

@@ -51,7 +51,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 - P1 Gmail OAuth y registro de mensajes.
 - P1 Google Calendar.
 - P1 Campañas y secuencias con controles.
-- P1 WhatsApp Cloud API y webhooks.
+- P1 WhatsApp Cloud API y webhooks. Hecho (recepción): webhook firmado, idempotente, asociado al contacto por teléfono. Pendiente: envío con plantillas aprobadas, opt-in y estados (requiere reglas de negocio y credenciales de Meta).
 - P1 Sincronización y monitoreo.
 
 ## Fase 7 — Documentos y comisiones

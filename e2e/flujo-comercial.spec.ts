@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { E2E_USER } from "./global-setup";
@@ -208,6 +209,39 @@ test("ajusta los pesos del puntaje y valida en servidor", async ({ page }) => {
   await expect(form.getByText("Pesos del puntaje guardados.")).toBeVisible();
   await page.goto("/instituciones");
   await expect(page.getByRole("columnheader", { name: "Puntaje" })).toBeVisible();
+});
+
+test("conecta WhatsApp y registra solo mensajes firmados por Meta", async ({ page, request }) => {
+  const phoneId = String(Date.now()).slice(-12);
+  const secret = "0123456789abcdef0123456789abcdef";
+  await page.getByRole("link", { name: "Integraciones" }).first().click();
+  await expect(page.getByText("Pendiente: ningún número conectado.")).toBeVisible();
+  await page.getByText("Conectar o actualizar un número").click();
+  await page.getByLabel("Phone number ID").fill(phoneId);
+  await page.getByLabel("Número visible").fill("+52 55 0000 0000");
+  await page.getByLabel("App Secret").fill(secret);
+  await page.getByRole("button", { name: "Guardar número" }).click();
+  const saved = page.getByText(/Token de verificación para Meta/);
+  await expect(saved).toBeVisible();
+  const token = (await saved.textContent())!.split(": ").pop()!.trim();
+
+  const hook = "/api/whatsapp/webhook";
+  const ok = await request.get(`${hook}?hub.mode=subscribe&hub.verify_token=${token}&hub.challenge=reto123`);
+  expect(await ok.text()).toBe("reto123");
+  expect((await request.get(`${hook}?hub.mode=subscribe&hub.verify_token=token-equivocado-xyz&hub.challenge=1`)).status()).toBe(403);
+
+  const body = JSON.stringify({ object: "whatsapp_business_account", entry: [{ id: "1", changes: [{ field: "messages", value: {
+    metadata: { phone_number_id: phoneId }, messages: [{ id: `wamid.${stamp}`, from: "5215598765432", timestamp: "1795000000", type: "text", text: { body: `Hola E2E ${stamp}` } }] } }] }] });
+  const sig = (s: string) => `sha256=${createHmac("sha256", s).update(body).digest("hex")}`;
+  const headers = { "content-type": "application/json" };
+  expect((await request.post(hook, { data: body, headers: { ...headers, "x-hub-signature-256": sig("otro-secreto") } })).status()).toBe(401);
+  expect((await request.post(hook, { data: body, headers: { ...headers, "x-hub-signature-256": sig(secret) } })).status()).toBe(200);
+
+  await page.reload();
+  await expect(page.getByText(`WhatsApp: Hola E2E ${stamp}`)).toBeVisible();
+  await expect(page.getByText("Último mensaje recibido")).toBeVisible();
+  await page.getByRole("button", { name: "Quitar" }).click();
+  await expect(page.getByText("Pendiente: ningún número conectado.")).toBeVisible();
 });
 
 test("integraciones explica qué falta si Google no está configurado", async ({ page }) => {

@@ -71,7 +71,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
   const [{ data: me }, { data: canAudit }, { data: mails }, scores, { data: catalog }] = await Promise.all([
     supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
     supabase.rpc("has_permission", { permission: "audit.read" }),
-    supabase.from("communications").select("id, direction, subject, snippet, from_email, sent_at").eq("institution_id", id)
+    supabase.from("communications").select("id, channel, direction, subject, snippet, from_email, from_phone, sent_at").eq("institution_id", id)
       .order("sent_at", { ascending: false }).limit(20),
     loadScores(supabase, [id]),
     supabase.from("products").select("name, default_pipeline_id").eq("active", true).not("default_pipeline_id", "is", null).order("name"),
@@ -321,15 +321,15 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
         </Card>
       )}
 
-      <Card title="Correos">
+      <Card title="Correos y WhatsApp">
         {(mails ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin correos registrados. Cada usuario los trae desde Integraciones al conectar su Gmail.</p>
+          <p className="text-sm text-muted-foreground">Sin correos ni mensajes registrados. Los correos llegan al conectar Gmail en Integraciones; los WhatsApp, al conectar el número de la empresa.</p>
         ) : (
           <ul className="divide-y divide-border text-sm">
             {(mails ?? []).map((m) => (
               <li key={m.id} className="space-y-0.5 py-2 first:pt-0">
-                <p className="font-medium">{m.direction === "outbound" ? "Enviado" : "Recibido"}: {m.subject || "(sin asunto)"}</p>
-                <p className="text-muted-foreground">{formatDateTime(m.sent_at, tz)} · {m.from_email}</p>
+                <p className="font-medium">{m.channel === "whatsapp" ? "WhatsApp recibido" : `${m.direction === "outbound" ? "Enviado" : "Recibido"}: ${m.subject || "(sin asunto)"}`}</p>
+                <p className="text-muted-foreground">{formatDateTime(m.sent_at, tz)} · {m.from_email ?? m.from_phone}</p>
                 {m.snippet && <p className="line-clamp-2 text-muted-foreground">{m.snippet}</p>}
               </li>
             ))}
