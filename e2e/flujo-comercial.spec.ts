@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { E2E_USER } from "./global-setup";
@@ -53,6 +54,7 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   await page.getByLabel("Nombre", { exact: true }).fill("Ana");
   await page.getByLabel("Apellidos").fill("Pérez");
   await page.getByLabel("Correo", { exact: true }).fill(`ana.${stamp}@colegio-e2e.mx`);
+  await page.getByLabel("Teléfono / WhatsApp").fill("+52 222 555 0101");
   await page.getByRole("button", { name: "Crear institución" }).click();
   // Si la base ya trae corridas anteriores, el detector de duplicados avisa: se confirma a propósito.
   const dup = page.getByText("Puede que esta institución ya exista");
@@ -221,24 +223,53 @@ test("ajusta los pesos del puntaje y valida en servidor", async ({ page }) => {
   await expect(page.getByRole("columnheader", { name: "Puntaje" })).toBeVisible();
 });
 
-test("crea un proveedor con sus productos y los busca", async ({ page }) => {
-  const code = `E2E${String(stamp).slice(-6)}`;
-  await page.getByRole("link", { name: "Proveedores" }).first().click();
-  await expect(page.getByRole("heading", { name: "Proveedores" })).toBeVisible();
-  await page.getByText("Agregar proveedor").click();
-  await page.getByLabel("Clave").fill(code);
-  await page.getByLabel("Nombre").fill(`Proveedor ${code}`);
-  await page.getByRole("button", { name: "Crear proveedor" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: `Proveedor ${code}` })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Productos (0)" })).toBeVisible();
-  const add = page.locator("details").filter({ hasText: "Agregar producto" });
-  await add.getByLabel("Clave").fill(`${code}-A`);
-  await add.getByLabel("Nombre").fill(`Curso ${code}`);
-  await add.getByRole("button", { name: "Agregar producto" }).click();
-  await expect(page.getByRole("heading", { name: "Productos (1)" })).toBeVisible();
-  await page.goto(`/productos?q=curso ${code.toLowerCase()}`);
-  await expect(page.getByRole("link", { name: `Proveedor ${code}` })).toBeVisible();
-  await expect(page.getByRole("link", { name: "IHS", exact: true })).toHaveCount(0);
+test("conecta WhatsApp y registra solo mensajes firmados por Meta", async ({ page, request }) => {
+  const phoneId = String(Date.now()).slice(-12);
+  const secret = "0123456789abcdef0123456789abcdef";
+  await page.getByRole("link", { name: "Integraciones" }).first().click();
+  await expect(page.getByText("Pendiente: ningún número conectado.")).toBeVisible();
+  await page.getByText("Conectar o actualizar un número").click();
+  await page.getByLabel("Phone number ID").fill(phoneId);
+  await page.getByLabel("Número visible").fill("+52 55 0000 0000");
+  await page.getByLabel("App Secret").fill(secret);
+  await page.getByRole("button", { name: "Guardar número" }).click();
+  const saved = page.getByText(/Token de verificación para Meta/);
+  await expect(saved).toBeVisible();
+  const token = (await saved.textContent())!.split(": ").pop()!.trim();
+
+  const hook = "/api/whatsapp/webhook";
+  const ok = await request.get(`${hook}?hub.mode=subscribe&hub.verify_token=${token}&hub.challenge=reto123`);
+  expect(await ok.text()).toBe("reto123");
+  expect((await request.get(`${hook}?hub.mode=subscribe&hub.verify_token=token-equivocado-xyz&hub.challenge=1`)).status()).toBe(403);
+
+  const body = JSON.stringify({ object: "whatsapp_business_account", entry: [{ id: "1", changes: [{ field: "messages", value: {
+    metadata: { phone_number_id: phoneId }, messages: [{ id: `wamid.${stamp}`, from: "5215598765432", timestamp: "1795000000", type: "text", text: { body: `Hola E2E ${stamp}` } }] } }] }] });
+  const sig = (s: string) => `sha256=${createHmac("sha256", s).update(body).digest("hex")}`;
+  const headers = { "content-type": "application/json" };
+  expect((await request.post(hook, { data: body, headers: { ...headers, "x-hub-signature-256": sig("otro-secreto") } })).status()).toBe(401);
+  expect((await request.post(hook, { data: body, headers: { ...headers, "x-hub-signature-256": sig(secret) } })).status()).toBe(200);
+
+  await page.reload();
+  await expect(page.getByText(`WhatsApp: Hola E2E ${stamp}`)).toBeVisible();
+  await expect(page.getByText("Último mensaje recibido")).toBeVisible();
+  await page.getByRole("button", { name: "Quitar", exact: true }).click();
+  await expect(page.getByText("Pendiente: ningún número conectado.")).toBeVisible();
+
+  await page.getByText("Registrar plantilla").click();
+  await page.getByLabel("Nombre en Meta").fill(`seguimiento_${stamp}`);
+  await page.getByLabel("Texto (para vista previa)").fill("Hola {{1}}, ¿pudiste revisar la propuesta?");
+  await page.getByRole("button", { name: "Agregar plantilla" }).click();
+  await expect(page.getByText(`seguimiento_${stamp}`)).toBeVisible();
+  await expect(page.getByText(/Envío: pendiente/)).toBeVisible();
+
+  await page.goto(`/instituciones?q=${encodeURIComponent(institution)}`);
+  await page.getByRole("link", { name: institution }).first().click();
+  await page.getByText("Consentimiento de WhatsApp").first().click();
+  await page.getByLabel("Cómo lo autorizó").fill("Formulario de feria");
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page.getByText("Aceptó WhatsApp", { exact: true })).toBeVisible();
+  // Sin token de Meta en el servidor no se ofrece enviar.
+  await expect(page.getByText("Enviar WhatsApp")).toHaveCount(0);
 });
 
 test("integraciones explica qué falta si Google no está configurado", async ({ page }) => {

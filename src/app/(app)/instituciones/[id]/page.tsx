@@ -4,7 +4,7 @@ import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
-import { Field, SelectField } from "@/components/ui/field";
+import { Field, SelectField, TextareaField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVITY_COLUMNS, ActivityItem, NewActivityForm, type ActivityRow } from "@/modules/activities/activity-panel";
 import { daysAgo, formatDateTime } from "@/modules/activities/time";
@@ -14,6 +14,11 @@ import { formatMoney, opportunityStatuses, totalsByCurrency } from "@/modules/op
 import { loadScores, scoreTone } from "@/modules/institutions/scoring";
 import { decisionRoles, institutionStatuses, institutionTypes, potentials, toOptions } from "@/modules/institutions/labels";
 import { formatDay } from "@/modules/activities/time";
+import { sendWhatsapp, setConsent } from "@/modules/whatsapp/actions";
+import { whatsappEnv } from "@/modules/whatsapp/config";
+
+const consentLabel: Record<string, string> = { granted: "Aceptó WhatsApp", revoked: "No contactar" };
+const waStatus: Record<string, string> = { pending: "Enviando", sent: "Enviado", delivered: "Entregado", read: "Leído", failed: "Falló" };
 
 const chip = "inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted";
 const date = (d: string) => new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date(d));
@@ -69,14 +74,17 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
     supabase.from("activities").select(ACTIVITY_COLUMNS).eq("institution_id", id).order("due_at", { ascending: false }).limit(100),
     supabase.rpc("current_profile_id"),
   ]);
-  const [{ data: me }, { data: canAudit }, { data: mails }, scores, { data: catalog }] = await Promise.all([
+  const [{ data: me }, { data: canAudit }, { data: mails }, scores, { data: catalog }, { data: waTemplates }, { count: waNumbers }] = await Promise.all([
     supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
     supabase.rpc("has_permission", { permission: "audit.read" }),
-    supabase.from("communications").select("id, direction, subject, snippet, from_email, sent_at").eq("institution_id", id)
+    supabase.from("communications").select("id, channel, direction, subject, snippet, from_email, from_phone, to_phone, status, error, sent_at").eq("institution_id", id)
       .order("sent_at", { ascending: false }).limit(20),
     loadScores(supabase, [id]),
     supabase.from("products").select("name, default_pipeline_id").eq("active", true).not("default_pipeline_id", "is", null).order("name"),
+    supabase.from("whatsapp_templates").select("id, name, body_preview").eq("active", true).order("name"),
+    supabase.from("whatsapp_accounts").select("id", { count: "exact", head: true }),
   ]);
+  const canSendWa = (waNumbers ?? 0) > 0 && whatsappEnv() !== null;
   const score = scores.get(id);
   const tz = me?.timezone ?? "America/Mexico_City";
   const activities = (acts.data ?? []) as ActivityRow[];
@@ -96,7 +104,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
   const oppProduct = new Map((oppProducts ?? []).map((p) => [p.default_pipeline_id, p.name]));
   const contactIds = (links.data ?? []).map((l) => l.contact_id);
   const { data: contacts } = contactIds.length
-    ? await supabase.from("contacts").select("id, first_name, last_name, email, phone").in("id", contactIds)
+    ? await supabase.from("contacts").select("id, first_name, last_name, email, phone, consent_status, consent_source").in("id", contactIds)
     : { data: [] };
   const contactById = new Map((contacts ?? []).map((c) => [c.id, c]));
   const people = (links.data ?? [])
@@ -211,7 +219,22 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
                   <p className="flex flex-wrap gap-x-3">
                     {p.contact?.email && <a href={`mailto:${p.contact.email}`} className="underline">{p.contact.email}</a>}
                     {p.contact?.phone && <a href={`tel:${digits(p.contact.phone)}`} className="underline">{p.contact.phone}</a>}
+                    {p.contact && consentLabel[p.contact.consent_status] && (
+                      <span title={p.contact.consent_source ?? undefined} className={`rounded px-1.5 py-0.5 text-xs ${p.contact.consent_status === "revoked" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                        {consentLabel[p.contact.consent_status]}
+                      </span>
+                    )}
                   </p>
+                  {canWrite && p.contact?.phone && (
+                    <details className="pt-1">
+                      <summary className="cursor-pointer text-xs text-muted-foreground">Consentimiento de WhatsApp</summary>
+                      <ActionForm action={setConsent.bind(null, id, p.contact.id)} submitLabel="Guardar" className="mt-2 grid gap-2 sm:grid-cols-2 sm:items-end">
+                        <SelectField label="Estado" name="consent_status" defaultValue={p.contact.consent_status === "revoked" ? "revoked" : "granted"}
+                          options={[{ value: "granted", label: "Aceptó recibir WhatsApp" }, { value: "revoked", label: "No contactar" }]} />
+                        <Field label="Cómo lo autorizó" name="consent_source" placeholder="Formulario de feria, llamada…" required />
+                      </ActionForm>
+                    </details>
+                  )}
                 </li>
               ))}
             </ul>
@@ -322,19 +345,40 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
         </Card>
       )}
 
-      <Card title="Correos">
+      <Card title="Correos y WhatsApp">
         {(mails ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin correos registrados. Cada usuario los trae desde Integraciones al conectar su Gmail.</p>
+          <p className="text-sm text-muted-foreground">Sin correos ni mensajes registrados. Los correos llegan al conectar Gmail en Integraciones; los WhatsApp, al conectar el número de la empresa.</p>
         ) : (
           <ul className="divide-y divide-border text-sm">
             {(mails ?? []).map((m) => (
               <li key={m.id} className="space-y-0.5 py-2 first:pt-0">
-                <p className="font-medium">{m.direction === "outbound" ? "Enviado" : "Recibido"}: {m.subject || "(sin asunto)"}</p>
-                <p className="text-muted-foreground">{formatDateTime(m.sent_at, tz)} · {m.from_email}</p>
+                <p className="font-medium">
+                  {m.channel === "whatsapp"
+                    ? m.direction === "outbound" ? `WhatsApp enviado a ${m.to_phone} · ${waStatus[m.status ?? ""] ?? ""}` : "WhatsApp recibido"
+                    : `${m.direction === "outbound" ? "Enviado" : "Recibido"}: ${m.subject || "(sin asunto)"}`}
+                </p>
+                <p className="text-muted-foreground">{formatDateTime(m.sent_at, tz)} · {m.direction === "outbound" && m.channel === "whatsapp" ? "Desde el CRM" : m.from_email ?? m.from_phone}</p>
+                {m.error && <p className="text-red-700">{m.error}</p>}
                 {m.snippet && <p className="line-clamp-2 text-muted-foreground">{m.snippet}</p>}
               </li>
             ))}
           </ul>
+        )}
+        {canSendWa && people.some((p) => p.contact?.phone) && (
+          <details className="rounded-md border border-border p-3">
+            <summary className="cursor-pointer text-sm font-medium">Enviar WhatsApp</summary>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Mensaje libre solo si el contacto te escribió en las últimas 24 h. Fuera de esa ventana usa una plantilla aprobada, y solo si el contacto aceptó recibir WhatsApp.
+            </p>
+            <ActionForm action={sendWhatsapp.bind(null, id)} submitLabel="Enviar" className="mt-3 grid gap-3">
+              <SelectField label="Contacto" name="contact_id" required
+                options={people.filter((p) => p.contact?.phone && p.contact.consent_status !== "revoked")
+                  .map((p) => ({ value: p.contact!.id, label: `${p.contact!.first_name} ${p.contact!.last_name} · ${p.contact!.phone}`.trim() }))} />
+              <SelectField label="Plantilla" name="template_id"
+                options={[{ value: "", label: "Mensaje libre (ventana de 24 h)" }, ...(waTemplates ?? []).map((t) => ({ value: t.id, label: `${t.name} · ${t.body_preview.slice(0, 60)}` }))]} />
+              <TextareaField label="Mensaje libre" name="text" maxLength={4096} placeholder="Solo si no elegiste plantilla" />
+            </ActionForm>
+          </details>
         )}
       </Card>
 
