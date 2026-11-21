@@ -7,7 +7,8 @@ import { disconnectGoogle, syncGmail } from "@/modules/google/actions";
 import { googleEnv } from "@/modules/google/config";
 import { aiEnv, DEFAULT_MODELS, providerLabel } from "@/modules/ai/config";
 import { Field } from "@/components/ui/field";
-import { removeWhatsappAccount, saveWhatsappAccount } from "@/modules/whatsapp/actions";
+import { createTemplate, deleteTemplate, removeWhatsappAccount, saveWhatsappAccount } from "@/modules/whatsapp/actions";
+import { whatsappEnv } from "@/modules/whatsapp/config";
 
 const errors: Record<string, string> = {
   config: "La integración con Google aún no está configurada en el servidor.",
@@ -20,12 +21,13 @@ const errors: Record<string, string> = {
 export default async function IntegrationsPage({ searchParams }: PageProps<"/integraciones">) {
   const sp = await searchParams;
   const supabase = await createClient();
-  const [{ data: meId }, { data: conn }, { data: waAccounts }, { data: canAdmin }, h] = await Promise.all([
+  const [{ data: meId }, { data: conn }, { data: waAccounts }, { data: canAdmin }, h, { data: waTemplates }] = await Promise.all([
     supabase.rpc("current_profile_id"),
     supabase.from("google_connections").select("google_email, connected_at, last_sync_at").maybeSingle(),
     supabase.from("whatsapp_accounts").select("id, display_phone, phone_number_id, last_event_at").order("created_at"),
     supabase.rpc("has_permission", { permission: "admin.structure" }),
     headers(),
+    supabase.from("whatsapp_templates").select("id, name, language, body_preview").order("name"),
   ]);
   const webhookUrl = `https://${h.get("host")}/api/whatsapp/webhook`;
   const [{ data: me }, { data: mails }] = await Promise.all([
@@ -85,7 +87,12 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
         <h2 className="font-semibold">WhatsApp Business (API oficial de Meta)</h2>
         <p className="text-sm text-muted-foreground">
           Los mensajes que tus contactos envíen al número de la empresa se registran en la ficha de su institución
-          (se reconoce al contacto por los últimos 10 dígitos de su teléfono). Por ahora solo se reciben; el envío con plantillas aprobadas vendrá después.
+          (se reconoce al contacto por los últimos 10 dígitos de su teléfono). Desde la ficha se envían mensajes: libres dentro de 24 h
+          desde el último mensaje del contacto y, fuera de esa ventana, solo plantillas aprobadas a contactos que aceptaron recibir WhatsApp.
+          Si un contacto responde BAJA o STOP queda como &ldquo;No contactar&rdquo;.
+        </p>
+        <p className="text-sm">
+          Envío: {whatsappEnv() ? "activo." : <span className="text-muted-foreground">pendiente: el administrador debe registrar el token de Meta en el servidor (ver README, WhatsApp).</span>}
         </p>
         {(waAccounts ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">Pendiente: ningún número conectado.</p>
@@ -116,6 +123,36 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
               <Field label="Phone number ID" name="phone_number_id" inputMode="numeric" required />
               <Field label="Número visible" name="display_phone" placeholder="+52 55 1234 5678" required />
               <Field label="App Secret" name="app_secret" type="password" autoComplete="off" required />
+            </ActionForm>
+          </details>
+        )}
+        <h3 className="text-sm font-semibold">Plantillas aprobadas</h3>
+        {(waTemplates ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin plantillas. Créalas y apruébalas en WhatsApp Manager y luego regístralas aquí con el mismo nombre.</p>
+        ) : (
+          <ul className="divide-y divide-border text-sm">
+            {(waTemplates ?? []).map((t) => (
+              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span><span className="font-medium">{t.name}</span> ({t.language}) · {t.body_preview}</span>
+                {canAdmin && (
+                  <form action={deleteTemplate.bind(null, t.id)}>
+                    <button type="submit" className="text-sm text-red-700 underline">Quitar plantilla</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {canAdmin && (
+          <details className="rounded-lg border border-border p-4">
+            <summary className="cursor-pointer text-sm font-medium">Registrar plantilla</summary>
+            <ActionForm action={createTemplate} submitLabel="Agregar plantilla" className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">
+              <Field label="Nombre en Meta" name="name" placeholder="seguimiento_informes" required />
+              <Field label="Idioma" name="language" defaultValue="es_MX" required />
+              <Field label="Texto (para vista previa)" name="body_preview" placeholder="Hola {{1}}, ¿pudiste revisar la propuesta?" className="sm:col-span-2" required />
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <input type="checkbox" name="uses_first_name" /> La variable {"{{1}}"} es el nombre del contacto
+              </label>
             </ActionForm>
           </details>
         )}

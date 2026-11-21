@@ -1,7 +1,7 @@
 -- Pruebas del webhook de WhatsApp (Fase 6b): firma, idempotencia, asociación y aislamiento.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(24);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 select public.bootstrap_organization('Org B', 'org-b', 'admin-b@test.dev');
@@ -27,10 +27,18 @@ create function pg_temp.body(p_msg_id text, p_from text) returns text language s
       'messages', jsonb_build_array(jsonb_build_object('id', p_msg_id, 'from', p_from, 'timestamp', '1795000000', 'type', 'text',
         'text', jsonb_build_object('body', 'Hola, queremos informes del TOEFL')))))))))::text
 $$;
+create function pg_temp.status_body(p_wamid text, p_status text) returns text language sql as $$
+  select jsonb_build_object('entry', jsonb_build_array(jsonb_build_object('changes', jsonb_build_array(jsonb_build_object('value', jsonb_build_object(
+    'metadata', jsonb_build_object('phone_number_id', '1234567890'),
+    'statuses', jsonb_build_array(jsonb_build_object('id', p_wamid, 'status', p_status, 'recipient_id', '522221234567'))))))))::text
+$$;
+create function pg_temp.text_body(p_msg_id text, p_text text) returns text language sql as $$
+  select replace(replace(pg_temp.body(p_msg_id, '5212221234567'), 'Hola, queremos informes del TOEFL', p_text), '1795000000', extract(epoch from now())::bigint::text)
+$$;
 create function pg_temp.sign(p_body text, p_secret text) returns text language sql as $$
   select 'sha256=' || encode(extensions.hmac(convert_to(p_body, 'UTF8'), convert_to(p_secret, 'UTF8'), 'sha256'), 'hex')
 $$;
-grant execute on function pg_temp.body(text, text), pg_temp.sign(text, text) to anon, authenticated;
+grant execute on function pg_temp.body(text, text), pg_temp.sign(text, text), pg_temp.status_body(text, text), pg_temp.text_body(text, text) to anon, authenticated;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
@@ -70,6 +78,66 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true);
 select is((select count(*)::int from public.communications) + (select count(*)::int from public.whatsapp_accounts), 0,
   'otra organización no ve ni el número ni los mensajes');
+
+-- Envío: reglas de ventana de 24 h, plantillas y consentimiento.
+reset role;
+create temp table t as select
+  (select id from public.institutions where name = 'Colegio Sol') as inst,
+  (select id from public.contacts where phone = '+52 (222) 123-4567') as ana;
+grant select on t to authenticated;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
+insert into public.whatsapp_templates (organization_id, name, language, body_preview, uses_first_name)
+values (public.current_org_id(), 'seguimiento_informes', 'es_MX', 'Hola {{1}}, ¿pudiste revisar la propuesta?', true);
+create temp table tpl as select id from public.whatsapp_templates;
+grant select on tpl to authenticated;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select throws_ok($$ select public.whatsapp_prepare_send((select inst from t), (select ana from t), null, 'Hola') $$, 'EB001',
+  'Pasaron más de 24 h desde el último mensaje del contacto: solo puedes enviar una plantilla aprobada.', 'fuera de 24 h no hay mensaje libre');
+select throws_ok($$ select public.whatsapp_prepare_send((select inst from t), (select ana from t), (select id from tpl), null) $$, 'EB001',
+  'Registra primero que el contacto aceptó recibir WhatsApp.', 'fuera de 24 h la plantilla exige consentimiento');
+update public.contacts set consent_status = 'granted', consent_source = 'Formulario de feria' where id = (select ana from t);
+select is((select public.whatsapp_prepare_send((select inst from t), (select ana from t), (select id from tpl), null)->'template'->>'first_name'), 'Ana',
+  'con consentimiento se prepara la plantilla con el nombre del contacto');
+select is((select snippet || ' → ' || to_phone || ' · ' || status from public.communications where direction = 'outbound'),
+  'Hola Ana, ¿pudiste revisar la propuesta? → +522221234567 · pending', 'queda registrado como pendiente con el texto que verá el contacto');
+
+create temp table out1 as select id from public.communications where direction = 'outbound';
+grant select on out1 to authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
+select public.whatsapp_mark_sent((select id from out1), 'wamid.hack', null);
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select is((select status from public.communications where id = (select id from out1)), 'pending', 'solo quien envió marca el resultado');
+select public.whatsapp_mark_sent((select id from out1), 'wamid.out1', null);
+select is((select external_id || ' ' || status from public.communications where id = (select id from out1)), 'wamid.out1 sent', 'Meta aceptó el envío');
+
+set local role anon;
+select public.whatsapp_ingest(pg_temp.status_body('wamid.out1', 'read'), pg_temp.sign(pg_temp.status_body('wamid.out1', 'read'), 'secreto-de-la-app-123'));
+select public.whatsapp_ingest(pg_temp.status_body('wamid.out1', 'delivered'), pg_temp.sign(pg_temp.status_body('wamid.out1', 'delivered'), 'secreto-de-la-app-123'));
+reset role;
+select is((select status from public.communications where external_id = 'wamid.out1'), 'read', 'los estados avanzan y no retroceden');
+
+set local role anon;
+select public.whatsapp_ingest(pg_temp.text_body('wamid.3', 'Sí, mañana les marco'), pg_temp.sign(pg_temp.text_body('wamid.3', 'Sí, mañana les marco'), 'secreto-de-la-app-123'));
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select ok((select public.whatsapp_prepare_send((select inst from t), (select ana from t), null, 'Perfecto, gracias') ? 'id'),
+  'dentro de 24 h desde su último mensaje se permite mensaje libre');
+
+set local role anon;
+select public.whatsapp_ingest(pg_temp.text_body('wamid.4', 'BAJA'), pg_temp.sign(pg_temp.text_body('wamid.4', 'BAJA'), 'secreto-de-la-app-123'));
+reset role;
+select is((select consent_status || ' · ' || consent_source from public.contacts where id = (select ana from t)), 'revoked · Pidió la baja por WhatsApp',
+  'responder BAJA revoca el consentimiento');
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select throws_ok($$ select public.whatsapp_prepare_send((select inst from t), (select ana from t), (select id from tpl), null) $$, 'EB001',
+  'Este contacto pidió no recibir mensajes.', 'tras la baja no se envía nada');
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true);
+select throws_ok($$ select public.whatsapp_prepare_send((select inst from t), (select ana from t), null, 'Hola') $$, 'EB001',
+  'No tienes acceso a esta institución.', 'otra organización no envía a contactos ajenos');
 
 select * from finish();
 rollback;
