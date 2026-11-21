@@ -88,6 +88,22 @@ App OAuth **interna** del Workspace (sirve para todos los dominios de la misma o
 
 Se guarda solo remitente, destinatarios, asunto, fecha y extracto de los correos con contactos del CRM. El refresh token se cifra con AES-256-GCM antes de llegar a la base, y nadie (ni el admin) lee la conexión de otro usuario.
 
+## Inteligencia artificial (Gemini o Claude)
+
+La IA es opcional y se activa solo en el servidor. Mientras no esté configurada, la app funciona igual y muestra "pendiente".
+La licencia de Gemini en Google Workspace no da acceso para aplicaciones: se necesita una clave de API propia.
+
+1. Crea la clave:
+   - Gemini: https://aistudio.google.com/apikey
+   - Claude: https://console.anthropic.com/settings/keys
+2. En Vercel › e2square › Settings › Environment Variables agrega, para Production y Preview:
+   - `AI_PROVIDER` = `gemini` (o `anthropic`)
+   - `GEMINI_API_KEY` (o `ANTHROPIC_API_KEY`) = la clave
+   - Opcional: `AI_MODEL` para usar otro modelo (por defecto `gemini-2.5-flash` o `claude-opus-5-5`).
+3. Vuelve a desplegar (Deployments › Redeploy). En Integraciones debe decir "Activa".
+
+Cambiar de proveedor es cambiar esas variables; no hay que tocar código. La IA solo recibe los datos de la oportunidad que el usuario ya puede ver, se ejecuta cuando alguien la pide y no guarda nada. Cada consulta tiene un costo pequeño por uso con el proveedor.
+
 ## Pruebas de base de datos
 Pruebas E2E en navegador (Playwright) contra Supabase **local**, nunca contra el remoto:
 ```powershell
