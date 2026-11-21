@@ -7,6 +7,7 @@ import { addPriceItem, addStage, createProduct, updateProduct, updateStage } fro
 import { CURRENCIES, revenueModels, stageRequirements } from "@/modules/catalog/labels";
 import { toOptions } from "@/modules/institutions/labels";
 import { formatMoney } from "@/modules/opportunities/labels";
+import { formatDay } from "@/modules/activities/time";
 
 function StageFields({ stage }: { stage?: { name: string; default_probability: number; sla_days: number | null; required_fields: string[]; is_won: boolean; is_lost: boolean } }) {
   return (
@@ -43,7 +44,7 @@ function PriceTable({ prices }: { prices: Price[] }) {
               <td className="py-2 pr-4 tabular-nums">{formatMoney(p.unit_price, p.currency_code)}</td>
               <td className="py-2 pr-4 tabular-nums">{formatMoney(p.unit_cost, p.currency_code)}</td>
               <td className="py-2 pr-4 tabular-nums">{Number(p.unit_price) > 0 ? `${Math.round((1 - Number(p.unit_cost) / Number(p.unit_price)) * 100)}%` : "—"}</td>
-              <td className="py-2 pr-4">{p.valid_from}</td>
+              <td className="py-2 pr-4">{p.valid_from ? formatDay(p.valid_from) : "—"}</td>
             </tr>
           ))}
         </tbody>

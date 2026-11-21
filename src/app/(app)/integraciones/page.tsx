@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/modules/activities/time";
 import { disconnectGoogle, syncGmail } from "@/modules/google/actions";
 import { googleEnv } from "@/modules/google/config";
+import { buttonVariants } from "@/components/ui/button";
 import { aiEnv, DEFAULT_MODELS, providerLabel } from "@/modules/ai/config";
 import { Field } from "@/components/ui/field";
 import { createTemplate, deleteTemplate, removeWhatsappAccount, saveWhatsappAccount } from "@/modules/whatsapp/actions";
@@ -64,11 +65,11 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
             </p>
             <div className="flex flex-wrap gap-6">
               <ActionForm action={syncGmail} submitLabel="Sincronizar correos">{null}</ActionForm>
-              <ActionForm action={disconnectGoogle} submitLabel="Desconectar">{null}</ActionForm>
+              <ActionForm action={disconnectGoogle} submitLabel="Desconectar" submitVariant="outline">{null}</ActionForm>
             </div>
           </>
         ) : (
-          <a href="/api/google/connect" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+          <a href="/api/google/connect" className={buttonVariants()}>
             Conectar mi cuenta de Google
           </a>
         )}

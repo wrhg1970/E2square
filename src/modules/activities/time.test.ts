@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayIn, utcToLocalInput, zonedToUtc, addDays, weekStart } from "./time";
+import { dayIn, utcToLocalInput, zonedToUtc, addDays, weekStart, formatDay } from "./time";
 
 describe("zonas horarias", () => {
   it("convierte hora local a UTC (CDMX sin horario de verano, UTC-6)", () => {
@@ -25,5 +25,12 @@ describe("semanas", () => {
     expect(weekStart("2026-11-16")).toBe("2026-11-16");
     expect(weekStart("2026-11-22")).toBe("2026-11-16");
     expect(addDays("2026-12-28", 7)).toBe("2027-01-04");
+  });
+});
+
+describe("fechas sin hora", () => {
+  it("no recorre el día por zona horaria", () => {
+    expect(formatDay("2027-01-01")).toMatch(/^1 ene\.? 2027$/);
+    expect(formatDay("2027-01-12T00:00:00+00:00")).toMatch(/^12 ene/);
   });
 });

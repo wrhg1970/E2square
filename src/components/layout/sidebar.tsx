@@ -46,13 +46,17 @@ function Account({ userName }: { userName: string }) {
   );
 }
 
+export function BrandMark() {
+  return <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-xs font-extrabold text-primary-foreground">E2</span>;
+}
+
 // alerts: actividades pendientes de hoy o vencidas (recordatorio visible en todas las páginas).
 export function Sidebar({ userName, alerts = 0 }: { userName: string; alerts?: number }) {
   return (
     <>
       <details className="on-band border-b border-border bg-band md:hidden">
-        <summary className="flex cursor-pointer items-center justify-between px-5 py-3 font-semibold">
-          E2Square
+        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 font-bold tracking-tight">
+          <span className="flex items-center gap-2.5"><BrandMark />E2Square</span>
           <span className="text-sm font-normal text-muted-foreground">Menú{alerts > 0 ? ` · ${alerts} pendientes` : ""}</span>
         </summary>
         <div className="pb-2">
@@ -62,7 +66,7 @@ export function Sidebar({ userName, alerts = 0 }: { userName: string; alerts?: n
       </details>
       <aside className="on-band hidden w-60 shrink-0 flex-col bg-band md:flex">
         <div className="flex items-center gap-2.5 px-5 py-5 text-lg font-bold tracking-tight">
-          <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-primary text-xs font-extrabold text-primary-foreground">E2</span>
+          <BrandMark />
           E2Square
         </div>
         <NavLinks alerts={alerts} />

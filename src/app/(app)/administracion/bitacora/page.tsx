@@ -3,6 +3,7 @@ import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dayIn, formatDateTime, zonedToUtc } from "@/modules/activities/time";
 import { actionLabels, auditTables, changes } from "@/modules/audit/diff";
+import { buttonVariants } from "@/components/ui/button";
 
 const PAGE = 50;
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -62,14 +63,14 @@ export default async function AuditPage({ searchParams }: PageProps<"/administra
         <SelectField label="Módulo" name="tabla" defaultValue={table}
           options={[{ value: "", label: "Todos" }, ...Object.entries(auditTables).map(([value, label]) => ({ value, label }))]} />
         {record && <input type="hidden" name="registro" value={record} />}
-        <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Aplicar</button>
+        <button type="submit" className={buttonVariants({ variant: "outline" })}>Aplicar</button>
         {record && <Link href={`?${new URLSearchParams({ desde: from, hasta: to })}`} className="text-sm hover:underline">Quitar filtro de registro</Link>}
       </form>
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay cambios registrados con estos filtros.</p>
       ) : (
-        <table className="w-full text-left text-sm">
+        <div className="table-card"><table className="w-full text-left text-sm">
           <thead className="text-muted-foreground">
             <tr>
               <th className="py-2 pr-4 font-medium">Fecha</th>
@@ -103,7 +104,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/administra
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       <nav className="flex gap-4 text-sm" aria-label="Páginas">

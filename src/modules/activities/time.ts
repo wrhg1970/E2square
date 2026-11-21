@@ -27,6 +27,10 @@ export function utcToLocalInput(iso: string, timeZone: string) {
   return d.toISOString().slice(0, 16);
 }
 
+// Día calendario guardado como YYYY-MM-DD (sin hora) -> "12 ene 2027". Se fija a UTC para no recorrer el día.
+export const formatDay = (day: string) =>
+  new Intl.DateTimeFormat("es-MX", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${day.slice(0, 10)}T12:00:00Z`));
+
 export const formatDateTime = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat("es-MX", { timeZone, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 

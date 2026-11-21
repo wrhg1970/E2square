@@ -1,7 +1,8 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-const control = "h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const base = "w-full rounded-md border border-border bg-background text-sm shadow-sm transition-colors placeholder:text-muted-foreground/80 hover:border-muted-foreground/40 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-50";
+const control = `${base} h-9 px-3`;
 
 export function Field({ label, className, ...props }: ComponentProps<"input"> & { label: string }) {
   return (
@@ -37,7 +38,7 @@ export function TextareaField({ label, className, ...props }: ComponentProps<"te
   return (
     <label className={cn("flex flex-col gap-1 text-sm", className)}>
       <span className="font-medium">{label}</span>
-      <textarea className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" {...props} />
+      <textarea className={`${base} min-h-20 px-3 py-2`} {...props} />
     </label>
   );
 }

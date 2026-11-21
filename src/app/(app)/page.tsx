@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dayIn } from "@/modules/activities/time";
 import { GoalBar, type GoalProgress } from "@/modules/goals/goal-bar";
 import { formatMoney } from "@/modules/opportunities/labels";
+import { buttonVariants } from "@/components/ui/button";
 
 type Metrics = {
   currency: string; won_amount: number; won_margin: number; won_units: number; won_count: number; lost_count: number;
@@ -18,9 +19,9 @@ const uuid = (v: unknown) => (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-background shadow-sm p-4">
+    <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
@@ -89,7 +90,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <p className="text-sm text-muted-foreground">Cifras de tu cartera visible, en {m?.currency ?? "—"}. <Link href="/mi-dia" className="underline">Ir a Mi día</Link></p>
         </div>
         {canExport.data && (
-          <a href={`/reportes/oportunidades?${filters}`} className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted">Exportar oportunidades (CSV)</a>
+          <a href={`/reportes/oportunidades?${filters}`} className={buttonVariants({ variant: "outline" })}>Exportar oportunidades (CSV)</a>
         )}
       </div>
 
@@ -98,8 +99,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <Field label="Hasta" name="hasta" type="date" defaultValue={to} className="w-40" />
         <SelectField label="Vendedor" name="vendedor" defaultValue={owner ?? ""} options={opt(profiles.data)} />
         <SelectField label="Oficina" name="oficina" defaultValue={office ?? ""} options={opt(offices.data)} />
-        <SelectField label="Proveedor" name="producto" defaultValue={productId ?? ""} options={opt(products.data)} />
-        <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Aplicar</button>
+        <SelectField label="Producto" name="producto" defaultValue={productId ?? ""} options={opt(products.data)} />
+        <button type="submit" className={buttonVariants({ variant: "outline" })}>Aplicar</button>
       </form>
 
       {metrics.error || !m ? (
@@ -111,7 +112,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               {m.unconverted} oportunidad(es) en otra moneda no tienen tipo de cambio a {m.currency} y no se suman. Agrégalo en Administración.
             </p>
           )}
-          <section aria-label="Indicadores" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Tile label="Venta ganada" value={money(m.won_amount)} hint={`${m.won_count} ganadas · ${m.won_units} unidades`} />
             <Tile label="Margen ganado" value={money(m.won_margin)} hint={m.won_amount ? `${Math.round((m.won_margin / m.won_amount) * 100)}% de la venta` : undefined} />
             <Tile label="Win rate" value={winRate === null ? "—" : `${winRate}%`} hint={`${m.won_count} ganadas de ${m.won_count + m.lost_count} cerradas`} />
@@ -125,16 +126,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </section>
 
           <div className="grid gap-8 lg:grid-cols-2">
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold">Venta ganada por proveedor</h2>
+            <section className="space-y-3 rounded-xl border border-border bg-background p-5 shadow-sm">
+              <h2 className="text-lg font-semibold">Venta ganada por producto</h2>
               {m.by_product.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin oportunidades en este filtro.</p>
               ) : (
                 <>
-                  <Bars label="Venta ganada por proveedor" rows={m.by_product.map((p) => ({ key: p.name, name: p.name, value: Number(p.won ?? 0), text: money(p.won) }))} />
-                  <table className="w-full text-sm">
-                    <caption className="sr-only">Detalle por proveedor</caption>
-                    <thead className="text-muted-foreground"><tr><th className="py-1 text-left font-medium">Proveedor</th><th className="text-right font-medium">Ganado</th><th className="text-right font-medium">Abierto</th><th className="text-right font-medium">Abiertas</th></tr></thead>
+                  <Bars label="Venta ganada por producto" rows={m.by_product.map((p) => ({ key: p.name, name: p.name, value: Number(p.won ?? 0), text: money(p.won) }))} />
+                  <table className="w-full text-sm [&_td:not(:first-child)]:pl-3 [&_th:not(:first-child)]:pl-3">
+                    <caption className="sr-only">Detalle por producto</caption>
+                    <thead className="text-muted-foreground"><tr><th className="py-1 text-left font-medium">Producto</th><th className="text-right font-medium">Ganado</th><th className="text-right font-medium">Abierto</th><th className="text-right font-medium">Abiertas</th></tr></thead>
                     <tbody>
                       {m.by_product.map((p) => (
                         <tr key={p.name} className="border-t border-border tabular-nums">
@@ -147,7 +148,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               )}
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-3 rounded-xl border border-border bg-background p-5 shadow-sm">
               <h2 className="text-lg font-semibold">Conversión por etapa{product ? ` · ${product.name}` : ""}</h2>
               <p className="text-xs text-muted-foreground">Oportunidades creadas en el periodo que llegaron a cada etapa (o más allá).</p>
               {first === 0 ? (
@@ -158,7 +159,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             </section>
           </div>
 
-          <section className="space-y-3">
+          <section className="space-y-3 rounded-xl border border-border bg-background p-5 shadow-sm">
             <div className="flex items-baseline justify-between">
               <h2 className="text-lg font-semibold">Metas del periodo</h2>
               <Link href="/metas" className="text-sm underline">Ver todas</Link>
@@ -168,7 +169,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
           <p className="text-xs text-muted-foreground">
             Venta y margen usan la fecha de cierre y el tipo de cambio vigente a esa fecha; el pipeline abierto usa la tasa de hoy. Actualizado:{" "}
-            {new Date(m.generated_at).toLocaleString("es-MX", { timeZone: me?.timezone ?? "America/Mexico_City" })}.
+            {new Date(m.generated_at).toLocaleString("es-MX", { timeZone: me?.timezone ?? "America/Mexico_City" })}
           </p>
         </>
       )}

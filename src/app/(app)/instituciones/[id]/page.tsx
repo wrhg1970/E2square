@@ -13,6 +13,7 @@ import { InstitutionFields, loadInstitutionOptions } from "@/modules/institution
 import { formatMoney, opportunityStatuses, totalsByCurrency } from "@/modules/opportunities/labels";
 import { loadScores, scoreTone } from "@/modules/institutions/scoring";
 import { decisionRoles, institutionStatuses, institutionTypes, potentials, toOptions } from "@/modules/institutions/labels";
+import { formatDay } from "@/modules/activities/time";
 import { sendWhatsapp, setConsent } from "@/modules/whatsapp/actions";
 import { whatsappEnv } from "@/modules/whatsapp/config";
 
@@ -181,7 +182,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
       </nav>
 
       {score && (
-        <section aria-labelledby="puntaje" className="rounded-xl border border-border p-5">
+        <section aria-labelledby="puntaje" className="rounded-xl border border-border bg-background p-5 shadow-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="puntaje" className="font-semibold">
               Puntaje <span className={`ml-2 rounded-full px-2.5 py-0.5 text-sm ${scoreTone(score.score)}`}>{score.score ?? "—"} / 100</span>
@@ -291,7 +292,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
                   <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
                   <span className="text-muted-foreground"> · {oppProduct.get(o.pipeline_id)} · {oppStage.get(o.stage_id)}{o.status !== "open" ? ` (${opportunityStatuses[o.status as keyof typeof opportunityStatuses]})` : ""}</span>
                 </span>
-                <span>{formatMoney(o.amount, o.currency_code)} · {o.probability}%{o.expected_close_date ? ` · ${o.expected_close_date}` : ""}</span>
+                <span>{formatMoney(o.amount, o.currency_code)} · {o.probability}%{o.expected_close_date ? ` · ${formatDay(o.expected_close_date)}` : ""}</span>
               </li>
             ))}
           </ul>
