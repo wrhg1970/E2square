@@ -44,7 +44,7 @@ function PriceTable({ prices }: { prices: Price[] }) {
               <td className="py-2 pr-4 tabular-nums">{formatMoney(p.unit_price, p.currency_code)}</td>
               <td className="py-2 pr-4 tabular-nums">{formatMoney(p.unit_cost, p.currency_code)}</td>
               <td className="py-2 pr-4 tabular-nums">{Number(p.unit_price) > 0 ? `${Math.round((1 - Number(p.unit_cost) / Number(p.unit_price)) * 100)}%` : "—"}</td>
-              <td className="py-2 pr-4">{p.valid_from}</td>
+              <td className="py-2 pr-4">{p.valid_from ? formatDay(p.valid_from) : "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -130,36 +130,54 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
         </p>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Lista de precios</h2>
-        {!prices.data?.length ? (
-          <p className="text-sm text-muted-foreground">Sin precios. Las oportunidades podrán capturar precio manual.</p>
-        ) : (
-          <div className="table-card"><table className="w-full text-left text-sm">
-            <thead className="text-muted-foreground"><tr>{["Concepto", "Unidad", "Precio", "Costo", "Vigente desde"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr></thead>
-            <tbody>
-              {prices.data.map((p) => (
-                <tr key={p.id} className="border-t border-border">
-                  <td className="py-2 pr-4">{p.name}</td>
-                  <td className="py-2 pr-4">{p.unit_name}</td>
-                  <td className="py-2 pr-4">{formatMoney(p.unit_price, p.currency_code)}</td>
-                  <td className="py-2 pr-4">{formatMoney(p.unit_cost, p.currency_code)}</td>
-                  <td className="py-2 pr-4">{p.valid_from ? formatDay(p.valid_from) : "—"}</td>
-                </tr>
+      {isSupplier && (
+        <section aria-labelledby="productos" className={`${card} space-y-4`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="productos" className="text-lg font-semibold">Productos ({products.length})</h2>
+            <p className="text-sm text-muted-foreground">Lo que ofrece {product.name}. Las oportunidades de este proveedor eligen entre ellos.</p>
+          </div>
+          {!products.length ? (
+            <p className="text-sm text-muted-foreground">Sin productos todavía.{canManage ? " Agrega el primero abajo." : ""}</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {products.map((p) => (
+                <li key={p.id} className="py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <Link href={`/productos/${p.id}`} className="font-medium hover:underline">{p.name}</Link>
+                      <span className="ml-2 text-xs text-muted-foreground">{p.code}{p.category ? ` · ${p.category}` : ""}</span>
+                      {!p.active && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">Inactivo</span>}
+                    </div>
+                    <span className="text-sm tabular-nums text-muted-foreground">{fromPrice(p.id)}</span>
+                  </div>
+                  {canManage && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs underline">Editar</summary>
+                      <ActionForm action={updateProduct.bind(null, p.id)} submitLabel="Guardar" className="mt-2 grid gap-3 sm:grid-cols-6 sm:items-end">
+                        <ProductFields product={p} />
+                      </ActionForm>
+                    </details>
+                  )}
+                </li>
               ))}
-            </tbody>
-          </table></div>
-        )}
-        {canManage && (
-          <ActionForm action={addPriceItem.bind(null, id)} submitLabel="Agregar precio" className="grid gap-3 sm:grid-cols-6 sm:items-end">
-            <Field label="Concepto" name="name" placeholder="Licencia anual" required className="sm:col-span-2" />
-            <Field label="Unidad" name="unit_name" defaultValue="alumno" />
-            <SelectField label="Moneda" name="currency_code" defaultValue={product.default_currency} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
-            <Field label="Precio" name="unit_price" type="number" step="0.01" min={0} required />
-            <Field label="Costo" name="unit_cost" type="number" step="0.01" min={0} />
-          </ActionForm>
-        )}
-      </section>
+            </ul>
+          )}
+          {canManage && (
+            <details className="rounded-lg border border-dashed border-border p-4" open={!products.length}>
+              <summary className="cursor-pointer text-sm font-medium">Agregar producto</summary>
+              <ActionForm action={createProduct} submitLabel="Agregar producto" className="mt-3 grid gap-3 sm:grid-cols-5 sm:items-end">
+                <input type="hidden" name="supplier_id" value={id} />
+                <Field label="Clave" name="code" placeholder={`${product.code}-ITP`} required />
+                <Field label="Nombre" name="name" required />
+                <Field label="Categoría" name="category" />
+                <SelectField label="Modelo de ingreso" name="revenue_model" defaultValue={product.revenue_model} options={toOptions(revenueModels)} />
+                <SelectField label="Moneda" name="default_currency" defaultValue={product.default_currency} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
+                <input type="hidden" name="active" value="on" />
+              </ActionForm>
+            </details>
+          )}
+        </section>
+      )}
 
       {(!isSupplier || pricesOf(id).length > 0) && (
         <section aria-labelledby="precios" className={`${card} space-y-3`}>
