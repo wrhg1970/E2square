@@ -15,6 +15,7 @@ export const productSchema = z.object({
   revenue_model: z.enum(Object.keys(revenueModels) as [keyof typeof revenueModels], "Elige un modelo de ingreso"),
   default_currency: currency,
   active: checkbox.default(true),
+  supplier_id: z.preprocess(empty, z.uuid().nullable().optional()),
 });
 
 export const priceItemSchema = z.object({

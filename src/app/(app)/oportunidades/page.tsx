@@ -22,7 +22,7 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
   const view = sp.vista === "tabla" ? "tabla" : "kanban";
   const mine = sp.mias === "1";
 
-  if (!product) return <p className="text-sm text-muted-foreground">No hay productos con pipeline. Configúralos en Productos.</p>;
+  if (!product) return <p className="text-sm text-muted-foreground">No hay proveedores con pipeline. Configúralos en Proveedores.</p>;
 
   let query = supabase
     .from("opportunities")
@@ -57,7 +57,7 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
       </div>
 
       <form className="flex flex-wrap items-end gap-3">
-        <SelectField label="Producto" name="producto" defaultValue={product.id} options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+        <SelectField label="Proveedor" name="producto" defaultValue={product.id} options={(products ?? []).map((p) => ({ value: p.id, label: p.name }))} />
         <input type="hidden" name="vista" value={view} />
         <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" name="mias" value="1" defaultChecked={mine} /> Solo mías</label>
         <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm hover:bg-muted">Ver</button>
