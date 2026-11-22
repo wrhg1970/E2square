@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, dayIn, formatDateTime, zonedToUtc } from "@/modules/activities/time";
-import { actionLabels, auditTables, changes } from "@/modules/audit/diff";
+import { formatDateTime } from "@/modules/activities/time";
+import { actionLabels, auditTables, changes, FINANCE_FILTER } from "@/modules/audit/diff";
+import { auditFilters, auditQuery } from "@/modules/audit/query";
 import { buttonVariants } from "@/components/ui/button";
 
 const PAGE = 50;
-const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
-const uuid = (v: unknown) => (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v) ? v : null);
 const recordHref: Record<string, string> = { institutions: "/instituciones/", opportunities: "/oportunidades/" };
 
 type Entry = {
@@ -26,21 +25,11 @@ export default async function AuditPage({ searchParams }: PageProps<"/administra
 
   const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
   const tz = me?.timezone ?? "America/Mexico_City";
-  const today = dayIn(new Date(), tz);
-  const from = isDate(sp.desde) ? sp.desde : addDays(today, -30);
-  const to = isDate(sp.hasta) ? sp.hasta : today;
-  const table = typeof sp.tabla === "string" && sp.tabla in auditTables ? sp.tabla : "";
-  const record = uuid(sp.registro);
+  const filters = auditFilters(sp, tz);
+  const { from, to, table, record } = filters;
   const page = Math.max(0, Number.parseInt(String(sp.pagina ?? "0"), 10) || 0);
 
-  let q = supabase.from("audit_log")
-    .select("id, actor_auth_user_id, table_name, record_id, action, old_data, new_data, created_at")
-    .gte("created_at", zonedToUtc(`${from}T00:00`, tz).toISOString())
-    .lt("created_at", zonedToUtc(`${addDays(to, 1)}T00:00`, tz).toISOString())
-    .order("created_at", { ascending: false })
-    .range(page * PAGE, page * PAGE + PAGE); // uno de más para saber si hay otra página
-  if (table) q = q.eq("table_name", table);
-  if (record) q = q.eq("record_id", record);
+  const q = auditQuery(supabase, filters, tz).range(page * PAGE, page * PAGE + PAGE); // uno de más para saber si hay otra página
   const [log, profiles] = await Promise.all([q, supabase.from("profiles").select("auth_user_id, full_name, email")]);
 
   if (log.error) return <p role="alert" className="text-sm text-red-700">No se pudo cargar la bitácora. Recarga la página.</p>;
@@ -61,10 +50,12 @@ export default async function AuditPage({ searchParams }: PageProps<"/administra
         <Field label="Desde" name="desde" type="date" defaultValue={from} className="w-40" />
         <Field label="Hasta" name="hasta" type="date" defaultValue={to} className="w-40" />
         <SelectField label="Módulo" name="tabla" defaultValue={table}
-          options={[{ value: "", label: "Todos" }, ...Object.entries(auditTables).map(([value, label]) => ({ value, label }))]} />
+          options={[{ value: "", label: "Todos" }, { value: FINANCE_FILTER, label: "Financiero (montos, precios, tipos de cambio, comisiones)" },
+            ...Object.entries(auditTables).map(([value, label]) => ({ value, label }))]} />
         {record && <input type="hidden" name="registro" value={record} />}
         <button type="submit" className={buttonVariants({ variant: "outline" })}>Aplicar</button>
         {record && <Link href={`?${new URLSearchParams({ desde: from, hasta: to })}`} className="text-sm hover:underline">Quitar filtro de registro</Link>}
+        <a href={`/administracion/bitacora/exportar?${params(0)}`} className={buttonVariants({ variant: "outline" })}>Exportar CSV</a>
       </form>
 
       {rows.length === 0 ? (
