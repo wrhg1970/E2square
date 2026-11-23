@@ -401,7 +401,7 @@ test("crea una meta trimestral, muestra su ritmo y la repite", async ({ page }) 
   await page.goto("/metas");
   await page.getByLabel("Nombre").fill(name);
   await page.getByLabel("Qué se mide").selectOption({ label: "Unidades vendidas" });
-  await page.getByLabel("Objetivo").fill("100");
+  await page.getByLabel("Objetivo", { exact: true }).fill("100");
   await page.getByLabel("Periodo", { exact: true }).selectOption({ label: "Trimestre" });
   await page.getByLabel("Desde (o cualquier día del periodo)").fill(new Date().toISOString().slice(0, 10));
   await page.getByRole("button", { name: "Crear meta" }).click();
@@ -441,6 +441,50 @@ test("importa ventas históricas con vista previa y sin duplicar", async ({ page
   await page.getByLabel(/Archivo/).setInputFiles(file);
   await page.getByRole("button", { name: "Continuar" }).click();
   await expect(status).toContainText("0 listas · 1 posibles duplicados");
+});
+
+test("reparte una meta general entre vendedores", async ({ page }) => {
+  // Dos vendedores nuevos: invitación en la app + usuario en Auth local (el perfil se crea al aceptar).
+  const { url, key } = localSupabase();
+  const sellers = [`vende1-${stamp}@e2square.test`, `vende2-${stamp}@e2square.test`];
+  await page.goto("/administracion");
+  const invite = page.locator("form").filter({ has: page.getByRole("button", { name: "Invitar" }) });
+  for (const email of sellers) {
+    await invite.getByLabel("Correo").fill(email);
+    await invite.getByLabel("Rol").selectOption({ index: 1 });
+    await invite.getByRole("button", { name: "Invitar" }).click();
+    await expect(page.getByRole("cell", { name: email })).toBeVisible();
+    const res = await fetch(`${url}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ email, password: "Prueba-E2E-2027", email_confirm: true }),
+    });
+    expect(res.ok).toBe(true);
+  }
+
+  const name = `Reparto E2E ${stamp}`;
+  await page.goto("/metas");
+  await page.getByLabel("Nombre").fill(name);
+  await page.getByLabel("Qué se mide").selectOption({ label: "Unidades vendidas" });
+  await page.getByLabel("Objetivo", { exact: true }).fill("9");
+  await page.getByLabel("Periodo", { exact: true }).selectOption({ label: "Mes" });
+  await page.getByLabel("Desde (o cualquier día del periodo)").fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole("button", { name: "Crear meta" }).click();
+  await expect(page.getByText("Meta creada.")).toBeVisible();
+
+  const goal = page.getByRole("listitem").filter({ hasText: name });
+  await goal.getByText("Repartir entre vendedores").click();
+  for (const email of sellers) await goal.getByRole("checkbox", { name: email }).check();
+  await goal.getByLabel(`Objetivo de ${sellers[0]}`).fill("5");
+  await goal.getByRole("button", { name: "Repartir" }).click();
+  await expect(goal.getByText(/^Captura el objetivo de cada vendedor/)).toBeVisible();
+
+  await goal.getByLabel(`Objetivo de ${sellers[0]}`).fill("");
+  await goal.getByRole("button", { name: "Repartir" }).click();
+  await expect(page.getByText("Meta repartida entre 2 vendedores.")).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: `Reparto de: ${name}` })).toHaveCount(2);
+  await expect(page.getByRole("listitem").filter({ hasText: `${name} · ${sellers[0]}` })).toContainText("de 5");
+  await expect(page.getByRole("listitem").filter({ hasText: `${name} · ${sellers[1]}` })).toContainText("de 4");
 });
 
 test("cierra sesión", async ({ page }) => {

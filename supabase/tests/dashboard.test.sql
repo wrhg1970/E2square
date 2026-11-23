@@ -1,7 +1,7 @@
 -- Pruebas de dashboard, conversión de moneda, metas y exportación auditada (Fase 5).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(27);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 insert into public.invitations (organization_id, email, role_id)
@@ -102,6 +102,29 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
 select is((select actual from public.goals_progress() where name = 'Venta Empresa B'), 1000::numeric, 'meta por empresa: solo la venta de esa empresa (20,000 MXN = 1000 USD)');
 select is((select actual from public.goals_progress() where name = 'Colegios Empresa B'), 1::numeric, 'meta por empresa: solo sus instituciones nuevas');
+
+-- Repartir una meta general entre vendedores.
+create temp table reps as select array_agg(id order by email) ids from public.profiles where email in ('rep1@test.dev', 'rep2@test.dev');
+grant select on reps to authenticated;
+select is((select public.split_goal((select id from public.goals where name = 'Venta del mes'), ids) from reps), 2, 'reparte la meta general');
+select results_eq($$ select name, target, actual from public.goals_progress() where name like 'Venta del mes · %' order by name $$,
+  $$ values ('Venta del mes · rep1@test.dev'::text, 2000::numeric, 1000::numeric), ('Venta del mes · rep2@test.dev', 2000, 1000) $$,
+  'partes iguales, cada vendedor con su propio avance');
+select throws_ok($$ select public.split_goal((select id from public.goals where name = 'Venta del mes'), ids, '{3000,500}') from reps $$,
+  'EB001', 'Los objetivos suman 3500, pero la meta general es 4000.0000.', 'los montos deben sumar el objetivo general');
+select public.split_goal((select id from public.goals where name = 'Venta del mes'), ids, '{3000,1000}') from reps;
+select is((select string_agg(target::int::text, ',' order by name) from public.goals where name like 'Venta del mes · %'), '3000,1000',
+  'volver a repartir reemplaza el reparto anterior');
+select throws_ok($$ select public.split_goal((select id from public.goals where name = 'Venta del mes · rep1@test.dev'), ids) from reps $$,
+  'EB001', 'Solo se reparte una meta general (sin vendedor).', 'no se reparte la meta de un vendedor');
+select public.split_goal((select id from public.goals where name = 'Colegios Empresa B'), ids) from reps;
+select is((select string_agg(target::int::text, ',' order by name) from public.goals where name like 'Colegios Empresa B · %'), '3,2',
+  'en conteos el residuo va completo al primero, sin fracciones');
+delete from public.goals where name = 'Venta del mes';
+select is((select count(*)::int from public.goals where name like 'Venta del mes%'), 0, 'borrar la general borra su reparto');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select throws_ok($$ select public.split_goal((select id from public.goals where name = 'Colegios Empresa B'), ids) from reps $$,
+  'EB001', 'No tienes permiso para administrar metas.', 'un vendedor no reparte metas');
 
 select * from finish();
 rollback;

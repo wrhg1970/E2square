@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
 import { nextPeriod } from "./period";
-import { goalSchema } from "./schemas";
+import { goalSchema, parseSplit } from "./schemas";
 
 export async function createGoal(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = goalSchema.safeParse(Object.fromEntries(formData));
@@ -38,4 +38,15 @@ export async function repeatGoal(formData: FormData) {
   await supabase.from("goals").insert({ ...g, period_start: next.start, period_end: next.end, created_by: me });
   revalidatePath("/metas");
   revalidatePath("/");
+}
+
+export async function splitGoal(goalId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = parseSplit(formData.getAll("owner").map(String), (id) => formData.get(`target_${id}`) as string | null);
+  if ("error" in parsed) return { error: parsed.error };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("split_goal", { p_goal: goalId, p_owners: parsed.owners, p_targets: parsed.targets ?? undefined });
+  if (error) return { error: dbErrorMessage(error) };
+  revalidatePath("/metas");
+  revalidatePath("/");
+  return { success: `Meta repartida entre ${data} vendedores.` };
 }

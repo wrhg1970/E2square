@@ -42,3 +42,16 @@ export const goalSchema = z.preprocess(withPeriod, z
     message: "Elige la moneda de la meta",
     path: ["currency_code"],
   }));
+
+// Reparto: vendedores marcados y, opcionalmente, el objetivo de cada uno ("target_<id>"). Sin montos = partes iguales.
+export function parseSplit(owners: string[], targetOf: (id: string) => string | null) {
+  const ids = z.array(z.uuid()).safeParse(owners);
+  if (!ids.success || new Set(owners).size < 2) return { error: "Elige al menos dos vendedores." } as const;
+  const raw = owners.map((id) => (targetOf(id) ?? "").trim());
+  if (raw.every((t) => t === "")) return { owners, targets: null } as const;
+  const targets = raw.map(Number);
+  if (raw.some((t) => t === "") || targets.some((t) => !Number.isFinite(t) || t <= 0)) {
+    return { error: "Captura el objetivo de cada vendedor elegido (mayor a 0) o deja todos vacíos para partes iguales." } as const;
+  }
+  return { owners, targets } as const;
+}
