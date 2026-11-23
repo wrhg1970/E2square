@@ -116,7 +116,7 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
 
 test("la venta ganada genera su comisión pendiente", async ({ page }) => {
   await page.goto("/comisiones");
-  const row = page.getByRole("row").filter({ hasText: `IHS ${stamp}` });
+  const row = page.getByRole("row").filter({ hasText: `IHS ${stamp}` }).filter({ hasText: "Margen:" });
   await expect(row).toContainText("Margen: USD 600"); // venta 1,000 - costo 400
   await expect(row.getByRole("cell", { name: "USD 60", exact: true })).toBeVisible(); // 10% del margen
   await expect(row.getByRole("button", { name: "Aprobar" })).toHaveCount(0); // nadie aprueba la suya
@@ -124,8 +124,8 @@ test("la venta ganada genera su comisión pendiente", async ({ page }) => {
   const download = page.waitForEvent("download");
   await page.getByRole("link", { name: "Exportar CSV" }).click();
   const csv = readFileSync(await (await download).path(), "utf8");
-  expect(csv).toContain("Fecha,Agente,Oportunidad,Producto,Base,Monto base,%,Comisión,Moneda,Estado");
-  expect(csv).toMatch(new RegExp(`IHS ${stamp}.*,Margen,600,10,60,USD,Pendiente`));
+  expect(csv).toContain("Fecha,Agente,Oportunidad,Producto,Tipo,Reparto %,Base,Monto base,%,Comisión,Moneda,Estado");
+  expect(csv).toMatch(new RegExp(`IHS ${stamp}.*,Venta,100,Margen,600,10,60,USD,Pendiente`));
   await page.goto("/comisiones?mes=2020-01&estado=all");
   await expect(page.getByText("No hay comisiones en este estado este mes.")).toBeVisible();
 });
@@ -375,6 +375,25 @@ test("busca documentos y muestra sus versiones", async ({ page }) => {
   await expect(page.getByText("Subir nueva versión")).toBeVisible();
   await page.goto("/documentos?q=no-existe-zzz");
   await expect(page.getByText("Ningún documento coincide con la búsqueda.")).toBeVisible();
+});
+
+test("configura bono, escalones y cobranza de comisiones", async ({ page }) => {
+  await page.goto("/comisiones");
+  await page.getByLabel("Escalones (% meta : % extra)").fill("cien");
+  await page.getByRole("button", { name: "Guardar esquemas" }).click();
+  await expect(page.getByText("Escribe los escalones como 100:1, 120:2")).toBeVisible();
+  await page.getByLabel("Bono por institución nueva").fill("500");
+  await page.getByLabel("Moneda del bono").selectOption("MXN");
+  await page.getByLabel("Escalones (% meta : % extra)").fill("120:2, 100:1");
+  await page.getByRole("button", { name: "Guardar esquemas" }).click();
+  await expect(page.getByText("Esquemas guardados")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("al 100% de la meta, +1%; al 120% de la meta, +2%")).toBeVisible();
+  await expect(page.getByText(/\$500(\.00)? al responsable/)).toBeVisible();
+  // La venta ganada del flujo espera el pago del cliente antes de pagar comisiones.
+  await page.getByRole("row").filter({ hasText: `IHS ${stamp}` }).getByRole("link").first().click();
+  await expect(page.getByRole("heading", { name: "Comisión" })).toBeVisible();
+  await expect(page.getByText("El cliente aún no ha pagado.")).toBeVisible();
 });
 
 test("cierra sesión", async ({ page }) => {

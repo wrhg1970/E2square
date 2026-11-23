@@ -1,7 +1,7 @@
 -- Pruebas de comisiones (Fase 7c).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 insert into public.invitations (organization_id, email, role_id)
@@ -96,6 +96,9 @@ select is((select (status, decided_by = dir)::text from public.commissions, ids 
   'el director aprueba y queda registrado quién');
 select throws_ok($$ select public.decide_commission((select id from public.commissions where basis = 'margin'), 'paid') $$, 'EB001', null,
   'una comisión rechazada no se paga');
+select throws_ok($$ select public.decide_commission((select id from public.commissions where basis = 'sale'), 'paid') $$, 'EB001',
+  'El cliente aún no paga esta oportunidad; registra el pago antes de pagar la comisión.', 'no se paga la comisión si el cliente no ha pagado');
+select public.mark_opportunity_collected((select id from opp1), true);
 select public.decide_commission((select id from public.commissions where basis = 'sale'), 'paid');
 select ok((select paid_at is not null and status = 'paid' from public.commissions where basis = 'sale'), 'se marca como pagada');
 

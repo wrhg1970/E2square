@@ -59,3 +59,4 @@ UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; so
 - Commission plan se versiona; cada comisión conserva la regla aplicada.
 - Nunca almacenar access tokens OAuth en texto plano. Usar secretos cifrados/servicio seguro.
 - Los importes consolidados deben conservar original y tipo de cambio aplicado.
+- commission_settings(organization_id, new_institution_bonus, bonus_currency, require_collection, tiers), opportunity_splits(opportunity_id, profile_id, share_pct) y opportunity_collections(opportunity_id, collected_on, marked_by). commissions.kind = sale | new_institution | tier.
