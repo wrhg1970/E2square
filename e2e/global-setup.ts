@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 
 export const E2E_USER = { email: "admin@e2square.test", password: "Prueba-E2E-2027" };
 
-// Crea (o reutiliza) el usuario del seed en Supabase Auth local con la llave service_role local.
-export default async function globalSetup() {
+// Supabase local y su llave service_role (nunca contra un proyecto remoto).
+export function localSupabase() {
   const env = Object.fromEntries(
     (() => { try { return readFileSync(".env.local", "utf8"); } catch { return ""; } })()
       .split(/\r?\n/).filter((l) => l.includes("=")).map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()]),
@@ -12,6 +12,12 @@ export default async function globalSetup() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error("Las pruebas E2E solo corren contra Supabase local.");
   if (!key) throw new Error("Define SUPABASE_SERVICE_ROLE_KEY con la llave service_role que muestra `npx supabase status`.");
+  return { url, key };
+}
+
+// Crea (o reutiliza) el usuario del seed en Supabase Auth local con la llave service_role local.
+export default async function globalSetup() {
+  const { url, key } = localSupabase();
   const res = await fetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
     headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },

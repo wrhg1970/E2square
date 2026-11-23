@@ -4,6 +4,7 @@ import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { formatDay } from "@/modules/activities/time";
+import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { addMembers, closeCampaign, launchCampaign, removeMember, updateCost } from "@/modules/campaigns/actions";
 import { campaignStatuses, campaignTypes, type CampaignResults } from "@/modules/campaigns/schemas";
 import { institutionStatuses, institutionTypes, toOptions } from "@/modules/institutions/labels";
@@ -143,6 +144,11 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
             </tbody>
           </table></div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Documentos</h2>
+        <DocumentsPanel campaignId={id} canWrite={Boolean(canManage)} />
       </section>
     </div>
   );
