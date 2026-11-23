@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { COLUMNS } from "@/modules/institutions/import-parse";
+import { importInstitutions } from "@/modules/institutions/import-action";
 import { ImportForm } from "@/modules/institutions/import-form";
 
 export default function ImportPage() {
@@ -19,7 +20,7 @@ export default function ImportPage() {
         <summary className="cursor-pointer">Columnas reconocidas</summary>
         <p className="mt-2 text-muted-foreground">{Object.keys(COLUMNS).join(", ")}</p>
       </details>
-      <ImportForm />
+      <ImportForm action={importInstitutions} noun="instituciones" />
     </div>
   );
 }

@@ -22,7 +22,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 - P0 Contactos y roles de decisión.
 - P0 Sucursales y grupos institucionales.
 - P1 Detección de duplicados.
-- P1 Importación Excel preview/commit.
+- P1 Importación Excel preview/commit (instituciones y, en Fase 3, oportunidades históricas).
 
 ## Fase 3 — Productos y oportunidades
 - P0 Catálogo configurable.

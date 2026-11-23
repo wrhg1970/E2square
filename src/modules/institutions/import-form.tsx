@@ -2,10 +2,11 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { importInstitutions, type ImportResult } from "./import-action";
+import type { ImportResult } from "./import-action";
 
-export function ImportForm() {
-  const [state, action, pending] = useActionState<ImportResult, FormData>(importInstitutions, null);
+// Vista previa / importación de un Excel. "noun" es lo que se crea ("instituciones", "oportunidades").
+export function ImportForm({ action: importAction, noun }: { action: (prev: ImportResult, formData: FormData) => Promise<ImportResult>; noun: string }) {
+  const [state, action, pending] = useActionState<ImportResult, FormData>(importAction, null);
   const result = state && "mode" in state ? state : null;
 
   return (
@@ -30,7 +31,7 @@ export function ImportForm() {
             {result.fileName}: {result.total} filas · {result.ready.length} listas · {result.duplicates.length} posibles duplicados · {new Set(result.errors.map((e) => e.row)).size} con errores
           </p>
           {result.mode === "commit" ? (
-            <p className="text-green-700">Se crearon {result.created} instituciones. Los duplicados y las filas con error no se importaron.</p>
+            <p className="text-green-700">Se crearon {result.created} {noun}. Los duplicados y las filas con error no se importaron.</p>
           ) : (
             <p className="text-muted-foreground">Vista previa: no se guardó nada. Corrige el archivo o elige “Importar las filas listas”.</p>
           )}
@@ -60,7 +61,7 @@ export function ImportForm() {
             <details>
               <summary className="cursor-pointer font-medium">Filas listas</summary>
               <ul className="mt-2 list-disc pl-5">
-                {result.ready.slice(0, 200).map((r) => <li key={r.row}>Fila {r.row}: {r.name}{r.city ? `, ${r.city}` : ""}{r.contact ? ` · ${r.contact}` : ""}</li>)}
+                {result.ready.slice(0, 200).map((r) => <li key={r.row}>Fila {r.row}: {r.label}</li>)}
               </ul>
             </details>
           )}
