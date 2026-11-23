@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
+import { nextPeriod } from "./period";
 import { goalSchema } from "./schemas";
 
 export async function createGoal(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -22,4 +23,19 @@ export async function deleteGoal(formData: FormData) {
   const supabase = await createClient();
   await supabase.from("goals").delete().eq("id", String(formData.get("id")));
   revalidatePath("/metas");
+}
+
+// Copia la meta (mismo alcance y objetivo) al periodo siguiente.
+export async function repeatGoal(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+  const [{ data: g }, { data: me }] = await Promise.all([
+    supabase.from("goals").select("organization_id, name, metric, period_start, period_end, target, currency_code, owner_id, office_id, product_id, company_id, business_unit_id").eq("id", id).maybeSingle(),
+    supabase.rpc("current_profile_id"),
+  ]);
+  if (!g) return;
+  const next = nextPeriod(g.period_start, g.period_end);
+  await supabase.from("goals").insert({ ...g, period_start: next.start, period_end: next.end, created_by: me });
+  revalidatePath("/metas");
+  revalidatePath("/");
 }

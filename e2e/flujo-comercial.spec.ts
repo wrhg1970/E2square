@@ -396,6 +396,23 @@ test("configura bono, escalones y cobranza de comisiones", async ({ page }) => {
   await expect(page.getByText("El cliente aún no ha pagado.")).toBeVisible();
 });
 
+test("crea una meta trimestral, muestra su ritmo y la repite", async ({ page }) => {
+  const name = `Meta E2E ${stamp}`;
+  await page.goto("/metas");
+  await page.getByLabel("Nombre").fill(name);
+  await page.getByLabel("Qué se mide").selectOption({ label: "Unidades vendidas" });
+  await page.getByLabel("Objetivo").fill("100");
+  await page.getByLabel("Periodo", { exact: true }).selectOption({ label: "Trimestre" });
+  await page.getByLabel("Desde (o cualquier día del periodo)").fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole("button", { name: "Crear meta" }).click();
+  await expect(page.getByText("Meta creada.")).toBeVisible();
+  const goal = page.getByRole("listitem").filter({ hasText: name });
+  await expect(goal).toHaveCount(1);
+  await expect(goal.getByText(/^Ritmo: a hoy debería ir en \d+%/)).toBeVisible();
+  await goal.getByRole("button", { name: "Repetir en el siguiente periodo" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: name })).toHaveCount(2);
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);
