@@ -323,6 +323,26 @@ test("integraciones explica qué falta si Google no está configurado", async ({
   await expect(page.getByText("La integración con Google aún no está configurada")).toBeVisible();
 });
 
+test("arma, lanza y mide una campaña", async ({ page }) => {
+  const name = `Campaña E2E ${stamp}`;
+  await page.goto("/campanas");
+  await page.getByText("Nueva campaña").click();
+  await page.getByLabel("Nombre").fill(name);
+  await page.getByLabel("Inicio").fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole("button", { name: "Crear campaña" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await page.getByLabel("Colegio", { exact: true }).check();
+  await page.getByRole("button", { name: "Agregar a la audiencia" }).click();
+  await expect(page.getByText(/Se agregaron \d+ instituciones/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Quitar" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Lanzar campaña" }).click();
+  await expect(page.getByText(/^Lanzada el /)).toBeVisible();
+  await expect(page.getByText(/Activa/).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Crear oportunidad" }).first()).toBeVisible();
+  const pending = page.getByText("Tareas pendientes").locator("..");
+  await expect(pending.getByText(/^[1-9]\d*$/)).toBeVisible();
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

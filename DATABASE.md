@@ -28,8 +28,8 @@ UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; so
 - opportunity_stage_history(id, opportunity_id, from_stage_id, to_stage_id, changed_by, changed_at, note)
 - activities(id, organization_id, institution_id, contact_id, opportunity_id, activity_type, subject, owner_id, due_at, timezone, status, outcome, notes)
 - tasks(id, activity_id, priority, completed_at, reminder_at)
-- campaigns(id, organization_id, name, campaign_type, product_id, start_at, end_at, budget_amount, currency_code, owner_id, status)
-- campaign_members(id, campaign_id, institution_id, contact_id, status, consent_basis)
+- campaigns(id, organization_id, name, campaign_type, product_id, start_date, end_date, budget_amount, actual_cost, currency_code, owner_id, status draft|active|finished|cancelled, segment, launched_at). Solo se activa con launch_campaign(); campaign_results() calcula audiencia, respuestas, oportunidades, ganado y ROI.
+- campaign_members(id, organization_id, campaign_id, institution_id, contact_id, consent_basis granted|unknown). Se agregan con add_campaign_members(); no se borran después del lanzamiento.
 - communications(id, organization_id, channel, provider_message_id, contact_id, institution_id, opportunity_id, direction, subject, body_excerpt, sent_at, status). Implementado con channel email|whatsapp; WhatsApp usa from_phone y es único por (organization_id, external_id).
 - whatsapp_accounts(id, organization_id, phone_number_id, display_phone, created_by, last_event_at) y whatsapp_secrets(account_id, app_secret, verify_token): secretos sin políticas RLS ni auditoría; la firma del webhook se verifica en whatsapp_ingest().
 - documents(id, organization_id, storage_path, file_name, mime_type, size_bytes, institution_id, opportunity_id, product_id, campaign_id, uploaded_by, version)
