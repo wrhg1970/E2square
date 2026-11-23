@@ -17,3 +17,14 @@ describe("goalSchema", () => {
     expect(goalSchema.safeParse({ ...base, metric: "units", currency_code: "", period_end: "2026-12-31" }).success).toBe(false);
   });
 });
+
+describe("goalSchema con periodo predefinido", () => {
+  it("calcula las fechas del trimestre y omite el fin capturado", () => {
+    const r = goalSchema.parse({ ...base, metric: "units", currency_code: "", period_kind: "quarter", period_start: "2027-02-10", period_end: "" });
+    expect([r.period_start, r.period_end]).toEqual(["2027-01-01", "2027-03-31"]);
+    expect("period_kind" in r).toBe(false);
+  });
+  it("con fechas a mano exige ambas", () => {
+    expect(goalSchema.safeParse({ ...base, metric: "units", currency_code: "", period_kind: "custom", period_end: "" }).success).toBe(false);
+  });
+});

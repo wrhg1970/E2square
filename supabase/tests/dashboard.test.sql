@@ -1,7 +1,7 @@
 -- Pruebas de dashboard, conversión de moneda, metas y exportación auditada (Fase 5).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(19);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 insert into public.invitations (organization_id, email, role_id)
@@ -87,6 +87,21 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001
 select results_eq($$ select name, actual from public.goals_progress() order by name $$,
   $$ values ('Unidades rep1@test.dev'::text, 10::numeric), ('Venta del mes', 1000) $$,
   'el vendedor ve su meta y la general, con avance de su cartera');
+
+-- Metas por empresa: solo cuenta la venta (y la institución) de esa empresa.
+reset role;
+insert into public.companies (organization_id, legal_name, country_code)
+select id, 'Empresa B', 'MX' from public.organizations where slug = 'org-a';
+update public.opportunities set company_id = (select id from public.companies where legal_name = 'Empresa B') where name = 'Colegio Tres IHS';
+update public.institutions set company_id = (select id from public.companies where legal_name = 'Empresa B') where name = 'Colegio Tres';
+insert into public.goals (organization_id, name, metric, period_start, period_end, target, currency_code, company_id)
+select organization_id, 'Venta Empresa B', 'revenue', current_date - 30, current_date, 4000, 'USD', id from public.companies where legal_name = 'Empresa B';
+insert into public.goals (organization_id, name, metric, period_start, period_end, target, company_id)
+select organization_id, 'Colegios Empresa B', 'new_institutions', current_date - 30, current_date, 5, id from public.companies where legal_name = 'Empresa B';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
+select is((select actual from public.goals_progress() where name = 'Venta Empresa B'), 1000::numeric, 'meta por empresa: solo la venta de esa empresa (20,000 MXN = 1000 USD)');
+select is((select actual from public.goals_progress() where name = 'Colegios Empresa B'), 1::numeric, 'meta por empresa: solo sus instituciones nuevas');
 
 select * from finish();
 rollback;
