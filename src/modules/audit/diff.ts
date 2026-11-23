@@ -28,6 +28,7 @@ export const auditTables: Record<string, string> = {
   whatsapp_templates: "Plantillas de WhatsApp",
   "export:oportunidades": "Exportación de oportunidades",
   "export:bitacora": "Exportación de bitácora",
+  "export:comisiones": "Exportación de comisiones",
 };
 
 // Auditoría financiera: todo lo que mueve montos, precios, márgenes, tipos de cambio o comisiones.

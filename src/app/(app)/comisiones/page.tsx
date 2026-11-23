@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/modules/activities/time";
 import { decideCommission, deleteRate, saveRate } from "@/modules/commissions/actions";
 import { commissionBases, commissionStatuses } from "@/modules/commissions/labels";
+import { monthRange } from "@/modules/commissions/period";
 import { formatMoney, totalsByCurrency } from "@/modules/opportunities/labels";
 
 type Status = keyof typeof commissionStatuses;
@@ -20,19 +21,27 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
   const sp = await searchParams;
   const status: Status | "all" = typeof sp.estado === "string" && (sp.estado in commissionStatuses || sp.estado === "all") ? (sp.estado as Status | "all") : "pending";
   const supabase = await createClient();
+  const [meId, profiles] = await Promise.all([
+    supabase.rpc("current_profile_id"),
+    supabase.from("profiles").select("id, full_name, email, status, timezone").order("full_name"),
+  ]);
+  const tz = (profiles.data ?? []).find((p) => p.id === meId.data)?.timezone ?? "America/Mexico_City";
+  const period = monthRange(sp.mes, tz);
 
   let q = supabase.from("commissions")
     .select("id, opportunity_id, profile_id, product_id, basis, rate_pct, base_amount, amount, currency_code, status, decision_note, created_at")
+    .gte("created_at", period.from).lt("created_at", period.to)
     .order("created_at", { ascending: false }).limit(LIMIT);
   if (status !== "all") q = q.eq("status", status);
 
-  const [list, rates, canManage, canApprove, meId, profiles, products] = await Promise.all([
+  const [list, month, rates, canManage, canApprove, canExport, products] = await Promise.all([
     q,
+    // shortcut: suma en la app hasta 1000 comisiones por mes (límite de la API); pasar a una función SQL si se supera.
+    supabase.from("commissions").select("status, currency_code, amount").gte("created_at", period.from).lt("created_at", period.to),
     supabase.from("commission_rates").select("id, profile_id, product_id, rate_pct, basis"),
     supabase.rpc("has_permission", { permission: "commissions.manage" }),
     supabase.rpc("has_permission", { permission: "commissions.approve" }),
-    supabase.rpc("current_profile_id"),
-    supabase.from("profiles").select("id, full_name, email, status, timezone").order("full_name"),
+    supabase.rpc("has_permission", { permission: "reports.export" }),
     supabase.from("products").select("id, name, supplier_id").order("name"),
   ]);
   if (list.error) return <p role="alert" className="text-sm text-red-700">No se pudieron cargar las comisiones. Recarga la página.</p>;
@@ -44,7 +53,10 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
   const person = new Map((profiles.data ?? []).map((p) => [p.id, p.full_name || p.email]));
   const rawName = new Map((products.data ?? []).map((p) => [p.id, p.name]));
   const productName = new Map((products.data ?? []).map((p) => [p.id, p.supplier_id ? `${rawName.get(p.supplier_id)} · ${p.name}` : p.name]));
-  const tz = (profiles.data ?? []).find((p) => p.id === meId.data)?.timezone ?? "America/Mexico_City";
+  const totalOf = (st: Status) => {
+    const r = (month.data ?? []).filter((c) => c.status === st);
+    return r.length ? totalsByCurrency(r, (c) => c.currency_code, (c) => Number(c.amount)) : "—";
+  };
   const total = totalsByCurrency(rows, (r) => r.currency_code, (r) => Number(r.amount));
   const sortedRates = [...(rates.data ?? [])].sort((a, b) =>
     `${person.get(a.profile_id)}${productName.get(a.product_id)}`.localeCompare(`${person.get(b.profile_id)}${productName.get(b.product_id)}`));
@@ -58,9 +70,27 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
         </p>
       </div>
 
+      <form className="flex flex-wrap items-end gap-3">
+        <Field label="Mes" name="mes" type="month" defaultValue={period.month} />
+        <input type="hidden" name="estado" value={status} />
+        <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm">Ver mes</button>
+        {canExport.data && (
+          <a href={`/comisiones/exportar?mes=${period.month}&estado=${status}`} className="h-9 content-center text-sm underline">Exportar CSV</a>
+        )}
+      </form>
+
+      <section aria-label="Resumen del mes" className="grid gap-3 sm:grid-cols-3">
+        {(["pending", "approved", "paid"] as const).map((st) => (
+          <div key={st} className="rounded-xl border border-border bg-background p-4 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{st === "pending" ? "Por aprobar" : st === "approved" ? "Aprobadas, por pagar" : "Pagadas"}</p>
+            <p className="text-lg font-semibold tabular-nums">{totalOf(st)}</p>
+          </div>
+        ))}
+      </section>
+
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Estado">
         {([...Object.entries(commissionStatuses), ["all", "Todas"]] as [string, string][]).map(([key, label]) => (
-          <Link key={key} href={`?estado=${key}`} aria-current={status === key ? "page" : undefined}
+          <Link key={key} href={`?estado=${key}&mes=${period.month}`} aria-current={status === key ? "page" : undefined}
             className={`rounded-full border px-3 py-1 ${status === key ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted"}`}>
             {label}
           </Link>
@@ -68,7 +98,7 @@ export default async function CommissionsPage({ searchParams }: PageProps<"/comi
       </nav>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No hay comisiones en este estado.</p>
+        <p className="text-sm text-muted-foreground">No hay comisiones en este estado este mes.</p>
       ) : (
         <div className="space-y-3">
           <p className="text-sm">

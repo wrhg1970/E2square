@@ -120,6 +120,14 @@ test("la venta ganada genera su comisión pendiente", async ({ page }) => {
   await expect(row).toContainText("Margen: USD 600"); // venta 1,000 - costo 400
   await expect(row.getByRole("cell", { name: "USD 60", exact: true })).toBeVisible(); // 10% del margen
   await expect(row.getByRole("button", { name: "Aprobar" })).toHaveCount(0); // nadie aprueba la suya
+  await expect(page.getByRole("region", { name: "Resumen del mes" })).toContainText(/Por aprobar\s*USD/);
+  const download = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Exportar CSV" }).click();
+  const csv = readFileSync(await (await download).path(), "utf8");
+  expect(csv).toContain("Fecha,Agente,Oportunidad,Producto,Base,Monto base,%,Comisión,Moneda,Estado");
+  expect(csv).toMatch(new RegExp(`IHS ${stamp}.*,Margen,600,10,60,USD,Pendiente`));
+  await page.goto("/comisiones?mes=2020-01&estado=all");
+  await expect(page.getByText("No hay comisiones en este estado este mes.")).toBeVisible();
 });
 
 test("avisa antes de crear una institución duplicada", async ({ page }) => {
