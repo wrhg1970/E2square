@@ -1,4 +1,4 @@
-import { Briefcase, BadgeDollarSign, Plug, Building2, CalendarCheck, CalendarDays, Home, Megaphone, Package, Settings, Target, Users } from "lucide-react";
+import { Briefcase, BadgeDollarSign, Plug, Building2, CalendarCheck, CalendarDays, FileText, Home, Megaphone, Package, Settings, Target, Users } from "lucide-react";
 
 // Módulos del MVP de enero 2027.
 export const navItems = [
@@ -8,6 +8,7 @@ export const navItems = [
   { href: "/oportunidades", label: "Oportunidades", icon: Briefcase },
   { href: "/productos", label: "Proveedores", icon: Package },
   { href: "/campanas", label: "Campañas", icon: Megaphone },
+  { href: "/documentos", label: "Documentos", icon: FileText },
   { href: "/mi-dia", label: "Mi día", icon: CalendarCheck },
   { href: "/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/metas", label: "Metas", icon: Target },

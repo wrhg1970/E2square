@@ -5,13 +5,22 @@ import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
 import { documentCategories, safeFileName, validateFile } from "./rules";
 
-type Target = { institution_id?: string; opportunity_id?: string };
-const pathFor = (t: Target) => (t.opportunity_id ? `/oportunidades/${t.opportunity_id}` : `/instituciones/${t.institution_id}`);
+type Target = { institution_id?: string; opportunity_id?: string; product_id?: string; campaign_id?: string; root_id?: string };
 const isUuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
+const nn = (v: string | null) => v ?? undefined;
+
+function revalidate(t: Target) {
+  if (t.opportunity_id) revalidatePath(`/oportunidades/${t.opportunity_id}`);
+  if (t.institution_id) revalidatePath(`/instituciones/${t.institution_id}`);
+  if (t.product_id) revalidatePath(`/productos/${t.product_id}`);
+  if (t.campaign_id) revalidatePath(`/campanas/${t.campaign_id}`);
+  revalidatePath("/documentos");
+}
 
 // Sube el archivo al bucket privado y registra el documento. RLS de Storage y de documents deciden el permiso.
 export async function uploadDocument(target: Target, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  if (!isUuid(target.institution_id) && !isUuid(target.opportunity_id)) return { error: "Documento sin destino." };
+  if (![target.institution_id, target.opportunity_id, target.product_id, target.campaign_id].some(isUuid)) return { error: "Documento sin destino." };
+  if (target.root_id !== undefined && !isUuid(target.root_id)) return { error: "Documento sin destino." };
   const file = formData.get("file");
   if (!(file instanceof File)) return { error: "Elige un archivo." };
   const invalid = validateFile(file);
@@ -29,23 +38,24 @@ export async function uploadDocument(target: Target, _prev: ActionState, formDat
 
   const { error } = await supabase.from("documents").insert({
     organization_id: orgId, storage_path: path, file_name: file.name.slice(0, 255), mime_type: file.type, size_bytes: file.size,
-    category, institution_id: target.institution_id ?? null, opportunity_id: target.opportunity_id ?? null, uploaded_by: me,
+    category, institution_id: target.institution_id ?? null, opportunity_id: target.opportunity_id ?? null,
+    product_id: target.product_id ?? null, campaign_id: target.campaign_id ?? null, root_id: target.root_id ?? null, uploaded_by: me,
   });
   if (error) {
     await supabase.storage.from("documents").remove([path]); // no dejar archivos huérfanos
     return { error: dbErrorMessage(error) };
   }
-  revalidatePath(pathFor(target));
-  return { success: "Documento guardado." };
+  revalidate(target);
+  return { success: target.root_id ? "Nueva versión guardada." : "Documento guardado." };
 }
 
 export async function deleteDocument(formData: FormData) {
   const id = formData.get("id");
   if (!isUuid(id)) return;
   const supabase = await createClient();
-  const { data } = await supabase.from("documents").delete().eq("id", id).select("storage_path, institution_id, opportunity_id");
+  const { data } = await supabase.from("documents").delete().eq("id", id).select("storage_path, institution_id, opportunity_id, product_id, campaign_id");
   const doc = data?.[0];
   if (!doc) return;
   await supabase.storage.from("documents").remove([doc.storage_path]);
-  revalidatePath(pathFor({ institution_id: doc.institution_id ?? undefined, opportunity_id: doc.opportunity_id ?? undefined }));
+  revalidate({ institution_id: nn(doc.institution_id), opportunity_id: nn(doc.opportunity_id), product_id: nn(doc.product_id), campaign_id: nn(doc.campaign_id) });
 }

@@ -8,6 +8,7 @@ import { CURRENCIES, revenueModels, stageRequirements } from "@/modules/catalog/
 import { toOptions } from "@/modules/institutions/labels";
 import { formatMoney } from "@/modules/opportunities/labels";
 import { formatDay } from "@/modules/activities/time";
+import { DocumentsPanel } from "@/modules/documents/documents-panel";
 
 function StageFields({ stage }: { stage?: { name: string; default_probability: number; sla_days: number | null; required_fields: string[]; is_won: boolean; is_lost: boolean } }) {
   return (
@@ -188,6 +189,11 @@ export default async function ProductPage({ params }: PageProps<"/productos/[id]
           {canManage && <PriceForm productId={id} currency={product.default_currency} />}
         </section>
       )}
+
+      <section aria-labelledby="documentos" className={`${card} space-y-3`}>
+        <h2 id="documentos" className="text-lg font-semibold">Documentos {isSupplier ? "del proveedor" : "del producto"}</h2>
+        <DocumentsPanel productId={id} canWrite={Boolean(canManage)} />
+      </section>
 
       {isSupplier && (
         <section aria-labelledby="pipeline" className="space-y-3">

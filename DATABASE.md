@@ -32,7 +32,7 @@ UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; so
 - campaign_members(id, organization_id, campaign_id, institution_id, contact_id, consent_basis granted|unknown). Se agregan con add_campaign_members(); no se borran después del lanzamiento.
 - communications(id, organization_id, channel, provider_message_id, contact_id, institution_id, opportunity_id, direction, subject, body_excerpt, sent_at, status). Implementado con channel email|whatsapp; WhatsApp usa from_phone y es único por (organization_id, external_id).
 - whatsapp_accounts(id, organization_id, phone_number_id, display_phone, created_by, last_event_at) y whatsapp_secrets(account_id, app_secret, verify_token): secretos sin políticas RLS ni auditoría; la firma del webhook se verifica en whatsapp_ingest().
-- documents(id, organization_id, storage_path, file_name, mime_type, size_bytes, institution_id, opportunity_id, product_id, campaign_id, uploaded_by, version)
+- documents(id, organization_id, storage_path, file_name, mime_type, size_bytes, category, institution_id, opportunity_id, product_id, campaign_id, uploaded_by, root_id, version). Una nueva versión comparte root_id, hereda vínculos y categoría (trigger documents_version). Los de proveedor o campaña los ve toda la organización.
 - targets(id, organization_id, scope_type, scope_id, metric, period_start, period_end, target_value, currency_code)
 - commission_plans(id, organization_id, name, version, effective_from, effective_to, rules_json, status)
 - commission_entries(id, opportunity_id, beneficiary_user_id, gross_amount, currency_code, status, approved_by, paid_at)

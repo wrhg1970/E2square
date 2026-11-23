@@ -55,7 +55,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 - P1 Sincronización y monitoreo. Hecho: panel "Estado de integraciones" en Administración (Google por usuario con aviso si Gmail lleva 7+ días sin sincronizar, números de WhatsApp y último aviso, envíos fallidos o sin confirmar, IA). Pendiente: sincronización automática programada.
 
 ## Fase 7 — Documentos y comisiones
-- P1 Repositorio privado.
+- P1 Repositorio privado. Hecho: bucket privado con descarga por URL firmada de 60 s; documentos en instituciones, oportunidades, proveedores/productos y campañas; versiones (se conservan las anteriores); página "Documentos" con búsqueda por nombre y categoría que respeta permisos. Falta probar la subida real contra Supabase Storage (en local no corre Storage).
 - P1 Metas avanzadas.
 - P1 Planes de comisión y aprobaciones.
 - P1 Auditoría financiera. Hecho: filtro "Financiero" en la bitácora (oportunidades, líneas, precios, tipos de cambio, comisiones y porcentajes) y exportación CSV auditada (audit.read + reports.export, máx. 5000 filas).

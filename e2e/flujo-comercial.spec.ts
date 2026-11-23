@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { E2E_USER } from "./global-setup";
+import { E2E_USER, localSupabase } from "./global-setup";
 
 // Flujo crítico del piloto: login → institución → oportunidad → productos → actividad → ganada → dashboard → exportación.
 test.describe.configure({ mode: "serial" });
@@ -341,6 +341,32 @@ test("arma, lanza y mide una campaña", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Crear oportunidad" }).first()).toBeVisible();
   const pending = page.getByText("Tareas pendientes").locator("..");
   await expect(pending.getByText(/^[1-9]\d*$/)).toBeVisible();
+});
+
+test("busca documentos y muestra sus versiones", async ({ page }) => {
+  // Storage no corre en local: se registran los documentos directo en la base y se prueba lista, búsqueda y versiones.
+  const { url, key } = localSupabase();
+  const rest = (path: string, init?: RequestInit) => fetch(`${url}/rest/v1/${path}`, {
+    ...init, headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json", prefer: "return=representation" },
+  }).then(async (r) => { if (!r.ok) throw new Error(`${r.status} ${await r.text()}`); return r.json(); });
+  const [inst] = await rest(`institutions?select=id,organization_id,owner_id&name=eq.${encodeURIComponent(institution)}&limit=1`);
+  const doc = (n: number) => ({ organization_id: inst.organization_id, storage_path: `${inst.organization_id}/${stamp}-v${n}.pdf`,
+    file_name: `Propuesta ${stamp}.pdf`, mime_type: "application/pdf", size_bytes: 2048, category: "proposal", institution_id: inst.id, uploaded_by: inst.owner_id });
+  const [v1] = await rest("documents", { method: "POST", body: JSON.stringify(doc(1)) });
+  await rest("documents", { method: "POST", body: JSON.stringify({ ...doc(2), root_id: v1.root_id }) });
+
+  await page.getByRole("link", { name: "Documentos" }).first().click();
+  await page.getByLabel("Buscar").fill(`Propuesta ${stamp}`);
+  await page.getByRole("button", { name: "Buscar" }).click();
+  const rows = page.getByRole("row").filter({ hasText: `Propuesta ${stamp}.pdf` });
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: "v2" })).toHaveCount(1);
+  await rows.first().getByRole("link", { name: institution }).click();
+  await expect(page.getByRole("heading", { name: institution })).toBeVisible();
+  await expect(page.getByText("Versiones anteriores (1)")).toBeVisible();
+  await expect(page.getByText("Subir nueva versión")).toBeVisible();
+  await page.goto("/documentos?q=no-existe-zzz");
+  await expect(page.getByText("Ningún documento coincide con la búsqueda.")).toBeVisible();
 });
 
 test("cierra sesión", async ({ page }) => {
