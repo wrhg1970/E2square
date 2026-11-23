@@ -57,7 +57,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 ## Fase 7 — Documentos y comisiones
 - P1 Repositorio privado. Hecho: bucket privado con descarga por URL firmada de 60 s; documentos en instituciones, oportunidades, proveedores/productos y campañas; versiones (se conservan las anteriores); página "Documentos" con búsqueda por nombre y categoría que respeta permisos. Falta probar la subida real contra Supabase Storage (en local no corre Storage).
 - P1 Metas avanzadas.
-- P1 Planes de comisión y aprobaciones. Hecho: % por agente y producto sobre venta o margen, cálculo al ganar, aprobación por director (nadie aprueba la suya), pago, resumen mensual por estado y moneda, y exportación CSV auditada para conciliar con nómina. Pendiente de reglas de Will: escalones, bonos por institución nueva, reparto entre colaboradores y comisión condicionada a cobranza.
+- P1 Planes de comisión y aprobaciones. Hecho: % por agente y producto sobre venta o margen, aprobación por director (nadie aprueba la suya), resumen mensual y CSV auditado, reparto entre agentes, bono por institución nueva, pago condicionado a cobranza y escalones por cumplimiento de meta. Reglas de los cuatro esquemas propuestas el 2026-11-23; falta que Will las confirme (ver COMMISSIONS.md).
 - P1 Auditoría financiera. Hecho: filtro "Financiero" en la bitácora (oportunidades, líneas, precios, tipos de cambio, comisiones y porcentajes) y exportación CSV auditada (audit.read + reports.export, máx. 5000 filas).
 
 ## Fase 8 — Inteligencia

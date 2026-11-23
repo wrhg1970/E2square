@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { aiEnv } from "@/modules/ai/config";
 import { BriefPanel } from "@/modules/ai/brief-panel";
+import { OpportunityCommissionPanel } from "@/modules/commissions/opportunity-panel";
 import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ui/action-form";
@@ -187,6 +188,10 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
             </form>
           </section>
         )}
+        <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
+          <h2 className="font-semibold">Comisión</h2>
+          <OpportunityCommissionPanel opp={opp} meId={meId} people={owners.data ?? []} />
+        </section>
         <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
           <h2 className="font-semibold">Documentos</h2>
           <DocumentsPanel opportunityId={id} canWrite={Boolean(canWrite)} />
