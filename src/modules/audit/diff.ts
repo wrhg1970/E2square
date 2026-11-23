@@ -24,8 +24,15 @@ export const auditTables: Record<string, string> = {
   user_scopes: "Ámbitos",
   role_permissions: "Permisos",
   organizations: "Organización",
-  "export:oportunidades": "Exportación",
+  whatsapp_accounts: "Números de WhatsApp",
+  whatsapp_templates: "Plantillas de WhatsApp",
+  "export:oportunidades": "Exportación de oportunidades",
+  "export:bitacora": "Exportación de bitácora",
 };
+
+// Auditoría financiera: todo lo que mueve montos, precios, márgenes, tipos de cambio o comisiones.
+export const FINANCE_TABLES = ["opportunities", "opportunity_items", "price_list_items", "exchange_rates", "commissions", "commission_rates"];
+export const FINANCE_FILTER = "finanzas";
 
 export const actionLabels: Record<string, string> = { INSERT: "Alta", UPDATE: "Cambio", DELETE: "Baja" };
 

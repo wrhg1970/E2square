@@ -193,6 +193,20 @@ test("la bitácora muestra quién cambió los ámbitos", async ({ page }) => {
   await expect(row).not.toContainText("Sistema");
 });
 
+test("la auditoría financiera filtra montos y comisiones y se exporta", async ({ page }) => {
+  await page.goto("/administracion/bitacora");
+  await page.getByLabel("Módulo").selectOption({ label: "Financiero (montos, precios, tipos de cambio, comisiones)" });
+  await page.getByRole("button", { name: "Aplicar" }).click();
+  await expect(page.getByRole("cell", { name: "Comisiones" }).first()).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Ámbitos" })).toHaveCount(0);
+  const download = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Exportar CSV" }).click();
+  const csv = readFileSync(await (await download).path(), "utf8");
+  expect(csv).toContain("Fecha,Usuario,Módulo,Acción,Registro,Detalle");
+  expect(csv).toContain("Comisiones");
+  expect(csv).not.toContain("Ámbitos");
+});
+
 test("activa y desactiva una automatización", async ({ page }) => {
   await page.goto("/administracion");
   const rule = page.getByRole("listitem").filter({ hasText: "Primer contacto." });

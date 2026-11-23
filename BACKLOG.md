@@ -58,7 +58,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 - P1 Repositorio privado.
 - P1 Metas avanzadas.
 - P1 Planes de comisión y aprobaciones.
-- P1 Auditoría financiera.
+- P1 Auditoría financiera. Hecho: filtro "Financiero" en la bitácora (oportunidades, líneas, precios, tipos de cambio, comisiones y porcentajes) y exportación CSV auditada (audit.read + reports.export, máx. 5000 filas).
 
 ## Fase 8 — Inteligencia
 - P2 Sales Copilot. Base lista: IA intercambiable (Gemini o Claude por variables de entorno) y "Resumen y riesgos" por oportunidad; se activa con la clave.
