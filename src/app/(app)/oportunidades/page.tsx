@@ -16,9 +16,10 @@ const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTim
 export default async function OpportunitiesPage({ searchParams }: PageProps<"/oportunidades">) {
   const sp = await searchParams;
   const supabase = await createClient();
-  const [{ data: products }, { data: me }] = await Promise.all([
+  const [{ data: products }, { data: me }, { data: canImport }] = await Promise.all([
     supabase.from("products").select("id, name, default_pipeline_id").eq("active", true).not("default_pipeline_id", "is", null).order("name"),
     supabase.rpc("current_profile_id"),
+    supabase.rpc("has_permission", { permission: "import.run" }),
   ]);
   const product = (products ?? []).find((p) => p.id === sp.producto) ?? products?.[0];
   const view = sp.vista === "tabla" ? "tabla" : "kanban";
@@ -55,7 +56,10 @@ export default async function OpportunitiesPage({ searchParams }: PageProps<"/op
             {totalsByCurrency(open, (o) => o.currency_code, (o) => (Number(o.amount) * o.probability) / 100)}
           </p>
         </div>
-        <Link href="/oportunidades/nueva" className={buttonVariants()}>Nueva oportunidad</Link>
+        <div className="flex gap-2">
+          {canImport && <Link href="/oportunidades/importar" className={buttonVariants({ variant: "outline" })}>Importar Excel</Link>}
+          <Link href="/oportunidades/nueva" className={buttonVariants()}>Nueva oportunidad</Link>
+        </div>
       </div>
 
       <form className="flex flex-wrap items-end gap-3">

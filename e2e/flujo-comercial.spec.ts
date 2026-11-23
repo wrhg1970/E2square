@@ -413,6 +413,36 @@ test("crea una meta trimestral, muestra su ritmo y la repite", async ({ page }) 
   await expect(page.getByRole("listitem").filter({ hasText: name })).toHaveCount(2);
 });
 
+test("importa ventas históricas con vista previa y sin duplicar", async ({ page }) => {
+  const csv = [
+    "institucion,oportunidad,proveedor,monto,moneda,estado,fecha_cierre",
+    `${institution},Histórica ${stamp},IHS,"$1,500.00",MXN,Ganada,30/06/2025`,
+    `${institution},Sin fecha ${stamp},IHS,100,MXN,Ganada,`,
+    `Colegio Inexistente ${stamp},X,IHS,100,MXN,Abierta,`,
+  ].join("\n");
+  const file = { name: "ventas.csv", mimeType: "text/csv", buffer: Buffer.from(csv) };
+  await page.goto("/oportunidades");
+  await page.getByRole("link", { name: "Importar Excel" }).click();
+  await expect(page.getByRole("heading", { name: "Importar oportunidades" })).toBeVisible();
+  await page.getByLabel(/Archivo/).setInputFiles(file);
+  await page.getByRole("button", { name: "Continuar" }).click();
+  const status = page.getByRole("status");
+  await expect(status).toContainText("3 filas · 1 listas · 0 posibles duplicados · 2 con errores");
+  await expect(status).toContainText("necesitan fecha de cierre");
+  await expect(status).toContainText(`No existe la institución "Colegio Inexistente ${stamp}"`);
+  await expect(status).toContainText(`Histórica ${stamp} · ${institution} · MXN 1,500 · Ganada`);
+
+  await page.getByLabel(/Archivo/).setInputFiles(file);
+  await page.getByLabel("Importar las filas listas").check();
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await expect(status).toContainText("Se crearon 1 oportunidades");
+
+  // Repetir el archivo no duplica.
+  await page.getByLabel(/Archivo/).setInputFiles(file);
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await expect(status).toContainText("0 listas · 1 posibles duplicados");
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

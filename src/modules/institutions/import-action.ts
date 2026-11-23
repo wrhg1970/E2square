@@ -1,16 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import readXlsx from "read-excel-file/node";
 import { createClient } from "@/lib/supabase/server";
 import { linkContact } from "./contacts";
-import { parseCsv, parseRows, type RowError } from "./import-parse";
+import { readRows } from "@/modules/import/read-rows";
+import { parseRows, type RowError } from "./import-parse";
 
 export type ImportResult = {
   mode: "preview" | "commit";
   fileName: string;
   total: number;
-  ready: { row: number; name: string; city: string | null; contact: string | null }[];
+  ready: { row: number; label: string }[];
   duplicates: { row: number; name: string; match: string }[];
   errors: RowError[];
   unknownColumns: string[];
@@ -20,13 +20,6 @@ export type ImportResult = {
 const MAX_BYTES = 5 * 1024 * 1024;
 // shortcut: revisa duplicados fila por fila (una consulta por fila); subir el límite exige hacerlo en lote en SQL.
 const MAX_ROWS = 1000;
-
-async function readRows(file: File): Promise<string[][]> {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  if (file.name.toLowerCase().endsWith(".csv")) return parseCsv(buffer.toString("utf8"));
-  const [sheet] = await readXlsx(buffer);
-  return sheet.data.map((r) => r.map((c) => (c == null ? "" : c instanceof Date ? c.toISOString().slice(0, 10) : String(c))));
-}
 
 export async function importInstitutions(_prev: ImportResult, formData: FormData): Promise<ImportResult> {
   const file = formData.get("file");
@@ -113,9 +106,8 @@ export async function importInstitutions(_prev: ImportResult, formData: FormData
     total: valid.length + new Set(errors.map((e) => e.row)).size,
     ready: fresh.map((r) => ({
       row: r.row,
-      name: r.institution.name,
-      city: r.institution.city ?? null,
-      contact: r.contact ? `${r.contact.first_name} ${r.contact.last_name}`.trim() : null,
+      label: [r.institution.name, r.institution.city].filter(Boolean).join(", ")
+        + (r.contact ? ` · ${`${r.contact.first_name} ${r.contact.last_name}`.trim()}` : ""),
     })),
     duplicates,
     errors,

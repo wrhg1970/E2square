@@ -61,3 +61,4 @@ UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; so
 - Los importes consolidados deben conservar original y tipo de cambio aplicado.
 - commission_settings(organization_id, new_institution_bonus, bonus_currency, require_collection, tiers), opportunity_splits(opportunity_id, profile_id, share_pct) y opportunity_collections(opportunity_id, collected_on, marked_by). commissions.kind = sale | new_institution | tier.
 - goals: además de owner_id, office_id y product_id, admite company_id y business_unit_id (venta/margen/unidades por la empresa de la oportunidad; instituciones y actividades por la de la institución).
+- opportunities.imported_at marca ventas históricas cargadas desde Excel (`import_opportunity`): conservan su fecha real de cierre, no generan comisiones ni tareas automáticas. import_runs.entity = institutions | opportunities.
