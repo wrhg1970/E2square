@@ -5,12 +5,13 @@ import { CURRENCIES } from "@/modules/catalog/labels";
 import { createOpportunity } from "@/modules/opportunities/actions";
 
 export default async function NewOpportunityPage({ searchParams }: PageProps<"/oportunidades/nueva">) {
-  const { institucion, producto } = await searchParams;
+  const { institucion, producto, campana } = await searchParams;
   const supabase = await createClient();
-  const [{ data: insts }, { data: products }, { data: owners }] = await Promise.all([
+  const [{ data: insts }, { data: products }, { data: owners }, { data: campaigns }] = await Promise.all([
     supabase.from("institutions").select("id, name").order("name").limit(1000),
     supabase.from("products").select("id, name, default_pipeline_id, default_currency").eq("active", true).not("default_pipeline_id", "is", null).order("name"),
     supabase.from("profiles").select("id, full_name, email").eq("status", "active").order("full_name"),
+    supabase.from("campaigns").select("id, name").eq("status", "active").order("start_date", { ascending: false }),
   ]);
 
   return (
@@ -39,6 +40,10 @@ export default async function NewOpportunityPage({ searchParams }: PageProps<"/o
           <Field label="Cierre estimado" name="expected_close_date" type="date" />
           <SelectField label="Responsable" name="owner_id" options={[{ value: "", label: "Yo" }, ...(owners ?? []).map((o) => ({ value: o.id, label: o.full_name || o.email }))]} />
           <Field label="Origen" name="source" />
+          {(campaigns ?? []).length > 0 && (
+            <SelectField label="Campaña" name="source_campaign_id" defaultValue={typeof campana === "string" ? campana : ""}
+              options={[{ value: "", label: "Ninguna" }, ...(campaigns ?? []).map((c) => ({ value: c.id, label: c.name }))]} />
+          )}
           <Field label="Competidor" name="competitor" />
           <TextareaField label="Notas" name="notes" className="sm:col-span-2" />
         </ActionForm>

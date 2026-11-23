@@ -14,11 +14,12 @@ export const opportunitySchema = z.object({
   owner_id: opt(z.uuid()),
   primary_contact_id: opt(z.uuid()),
   source: opt(z.string().trim().max(100)),
+  source_campaign_id: opt(z.uuid()),
   competitor: opt(z.string().trim().max(100)),
   notes: opt(z.string().trim().max(5000)),
 });
 
-export const opportunityUpdateSchema = opportunitySchema.omit({ institution_id: true, pipeline_id: true, currency_code: true }).extend({
+export const opportunityUpdateSchema = opportunitySchema.omit({ institution_id: true, pipeline_id: true, currency_code: true, source_campaign_id: true }).extend({
   probability: z.coerce.number().int().min(0, "Probabilidad entre 0 y 100").max(100, "Probabilidad entre 0 y 100"),
 });
 
