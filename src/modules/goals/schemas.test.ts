@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { goalSchema } from "./schemas";
+import { goalSchema, parseSplit } from "./schemas";
 
 const base = { name: "Meta Q1", period_start: "2027-01-01", period_end: "2027-03-31", target: "100", owner_id: "", office_id: "", product_id: "" };
 
@@ -26,5 +26,20 @@ describe("goalSchema con periodo predefinido", () => {
   });
   it("con fechas a mano exige ambas", () => {
     expect(goalSchema.safeParse({ ...base, metric: "units", currency_code: "", period_kind: "custom", period_end: "" }).success).toBe(false);
+  });
+});
+
+describe("parseSplit", () => {
+  const a = "11111111-1111-4111-8111-111111111111";
+  const b = "22222222-2222-4222-8222-222222222222";
+  it("sin montos reparte en partes iguales", () => {
+    expect(parseSplit([a, b], () => "")).toEqual({ owners: [a, b], targets: null });
+  });
+  it("con montos exige uno por vendedor", () => {
+    expect(parseSplit([a, b], (id) => (id === a ? "300" : "200"))).toEqual({ owners: [a, b], targets: [300, 200] });
+    expect(parseSplit([a, b], (id) => (id === a ? "300" : ""))).toHaveProperty("error");
+  });
+  it("pide al menos dos vendedores", () => {
+    expect(parseSplit([a], () => "")).toHaveProperty("error");
   });
 });

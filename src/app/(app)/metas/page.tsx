@@ -2,8 +2,8 @@ import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { CURRENCIES } from "@/modules/catalog/labels";
-import { createGoal, deleteGoal, repeatGoal } from "@/modules/goals/actions";
-import { GoalBar, type GoalProgress } from "@/modules/goals/goal-bar";
+import { createGoal, deleteGoal, repeatGoal, splitGoal } from "@/modules/goals/actions";
+import { formatGoalValue, GoalBar, type GoalProgress } from "@/modules/goals/goal-bar";
 import { goalMetrics } from "@/modules/goals/labels";
 import { dayIn, formatDay } from "@/modules/activities/time";
 import { expectedPct, periodKinds } from "@/modules/goals/period";
@@ -11,7 +11,7 @@ import { progressPct } from "@/modules/goals/labels";
 
 export default async function GoalsPage() {
   const supabase = await createClient();
-  const [goals, canManage, profiles, offices, products, companies, units, { data: meId }] = await Promise.all([
+  const [goals, canManage, profiles, offices, products, companies, units, { data: meId }, { data: links }] = await Promise.all([
     supabase.rpc("goals_progress"),
     supabase.rpc("has_permission", { permission: "goals.manage" }),
     supabase.from("profiles").select("id, full_name, email").eq("status", "active").order("full_name"),
@@ -20,6 +20,7 @@ export default async function GoalsPage() {
     supabase.from("companies").select("id, legal_name").order("legal_name"),
     supabase.from("business_units").select("id, name").order("name"),
     supabase.rpc("current_profile_id"),
+    supabase.from("goals").select("id, parent_id").not("parent_id", "is", null),
   ]);
   const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
   const today = dayIn(new Date(), me?.timezone ?? "America/Mexico_City");
@@ -29,6 +30,9 @@ export default async function GoalsPage() {
     ...(profiles.data ?? []).map((p) => [p.id, p.full_name ?? p.email] as [string, string]),
     ...[...(offices.data ?? []), ...(products.data ?? []), ...companyList, ...(units.data ?? [])].map((x) => [x.id, x.name] as [string, string]),
   ]);
+  const parentOf = new Map((links ?? []).map((l) => [l.id, l.parent_id as string]));
+  const goalName = new Map(rows.map((g) => [g.id, g.name]));
+  const splitCount = (id: string) => [...parentOf.values()].filter((p) => p === id).length;
   const name = (id: string | null) => (id ? names.get(id) ?? "—" : "Todos");
   const opt = (list: { id: string; name?: string; full_name?: string | null; email?: string }[] | null) => [
     { value: "", label: "Todos" },
@@ -65,6 +69,8 @@ export default async function GoalsPage() {
                 {goalMetrics[g.metric]} · {formatDay(g.period_start)} a {formatDay(g.period_end)} · Vendedor: {name(g.owner_id)} · Oficina:{" "}
                 {name(g.office_id)} · Producto: {name(g.product_id)}
                 {g.company_id && ` · Empresa: ${name(g.company_id)}`}{g.business_unit_id && ` · Unidad: ${name(g.business_unit_id)}`}
+                {parentOf.has(g.id) && ` · Reparto de: ${goalName.get(parentOf.get(g.id)!) ?? "meta general"}`}
+                {splitCount(g.id) > 0 && ` · Repartida entre ${splitCount(g.id)} vendedores`}
               </span>
               {canManage.data && (
                 <span className="flex gap-3">
@@ -79,6 +85,30 @@ export default async function GoalsPage() {
                 </span>
               )}
             </div>
+            {canManage.data && !g.owner_id && !parentOf.has(g.id) && (
+              <details className="text-sm">
+                <summary className="cursor-pointer text-xs text-muted-foreground underline hover:text-foreground">
+                  {splitCount(g.id) > 0 ? "Volver a repartir entre vendedores" : "Repartir entre vendedores"}
+                </summary>
+                <ActionForm action={splitGoal.bind(null, g.id)} submitLabel="Repartir" className="mt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Marca a los vendedores. Deja los objetivos vacíos para partes iguales, o captura uno por vendedor que sumen {formatGoalValue(Number(g.target), g.currency_code)}.
+                    {splitCount(g.id) > 0 && " El reparto anterior se reemplaza."}
+                  </p>
+                  <fieldset className="grid gap-2 sm:grid-cols-2">
+                    <legend className="sr-only">Vendedores</legend>
+                    {(profiles.data ?? []).map((p) => (
+                      <div key={p.id} className="flex items-center gap-2">
+                        <input type="checkbox" name="owner" value={p.id} id={`split-${g.id}-${p.id}`} />
+                        <label htmlFor={`split-${g.id}-${p.id}`} className="flex-1 truncate">{p.full_name || p.email}</label>
+                        <input type="number" name={`target_${p.id}`} min="0" step="any" aria-label={`Objetivo de ${p.full_name || p.email}`}
+                          className="w-28 rounded-md border border-border bg-background px-2 py-1 text-sm" />
+                      </div>
+                    ))}
+                  </fieldset>
+                </ActionForm>
+              </details>
+            )}
           </li>
         ))}
       </ul>
