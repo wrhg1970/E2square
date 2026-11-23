@@ -306,6 +306,14 @@ test("crea un proveedor con sus productos y los busca", async ({ page }) => {
   await expect(page.getByRole("link", { name: "IHS", exact: true })).toHaveCount(0);
 });
 
+test("administración muestra el estado de las integraciones", async ({ page }) => {
+  await page.goto("/administracion");
+  const panel = page.locator("section").filter({ has: page.getByRole("heading", { name: "Estado de integraciones" }) });
+  await expect(panel.getByText("faltan las credenciales en el servidor")).toBeVisible();
+  await expect(panel.getByText("IA: sin configurar")).toBeVisible();
+  await expect(panel.getByText("Nadie ha conectado su cuenta de Google todavía.")).toBeVisible();
+});
+
 test("integraciones explica qué falta si Google no está configurado", async ({ page }) => {
   await page.getByRole("link", { name: "Integraciones" }).first().click();
   await expect(page.getByRole("heading", { name: "Integraciones" })).toBeVisible();

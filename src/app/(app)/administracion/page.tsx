@@ -7,7 +7,22 @@ import { scoreFactors } from "@/modules/institutions/scoring";
 import { addExchangeRate, saveAutomation, updateScoreWeights, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
 import { automationRules } from "@/modules/admin/schemas";
 import { CURRENCIES } from "@/modules/catalog/labels";
-import { formatDay } from "@/modules/activities/time";
+import { formatDateTime, formatDay } from "@/modules/activities/time";
+import { googleEnv } from "@/modules/google/config";
+import { whatsappEnv } from "@/modules/whatsapp/config";
+import { aiEnv, providerLabel } from "@/modules/ai/config";
+
+type IntegrationStatus = {
+  google: { user: string; google_email: string; connected_at: string; last_sync_at: string | null }[];
+  whatsapp: { display_phone: string; last_event_at: string | null }[];
+  whatsapp_failed_7d: number; whatsapp_stuck: number;
+  last_errors: { sent_at: string; to_phone: string; error: string | null }[];
+};
+const STALE_DAYS = 7;
+const daysSince = (iso: string | null) => (iso ? Math.floor((Date.now() - Date.parse(iso)) / 86_400_000) : null);
+const Ok = ({ ok, children }: { ok: boolean; children: ReactNode }) => (
+  <span className={ok ? "text-green-700" : "text-amber-700"}>{ok ? "✓" : "!"} {children}</span>
+);
 import { buttonVariants } from "@/components/ui/button";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -55,6 +70,13 @@ export default async function AdminPage() {
     supabase.from("exchange_rates").select("id, base_currency, quote_currency, rate, effective_at").order("effective_at", { ascending: false }).limit(50),
     supabase.from("automation_rules").select("key, enabled, days"),
   ]);
+  const [{ data: meId }, status] = canStructure.data
+    ? await Promise.all([supabase.rpc("current_profile_id"), supabase.rpc("integration_status")])
+    : [{ data: null }, { data: null }];
+  const { data: me } = meId ? await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle() : { data: null };
+  const tz = me?.timezone ?? "America/Mexico_City";
+  const integ = status.data as IntegrationStatus | null;
+  const ai = aiEnv();
 
   if (companies.error) {
     return <p role="alert" className="text-sm text-red-700">No se pudo cargar la administración. Recarga la página.</p>;
@@ -73,6 +95,33 @@ export default async function AdminPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Administración</h1>
         <Link href="/administracion/bitacora" className={buttonVariants({ variant: "outline" })}>Bitácora de auditoría</Link>
       </div>
+
+      {integ && (
+        <Section title="Estado de integraciones">
+          <ul className="space-y-1 text-sm">
+            <li><Ok ok={googleEnv() !== null}>Google (Gmail y Calendar): {googleEnv() ? "configurado en el servidor" : "faltan las credenciales en el servidor"}</Ok></li>
+            <li><Ok ok={integ.whatsapp.length > 0}>WhatsApp: {integ.whatsapp.length ? integ.whatsapp.map((w) => `${w.display_phone} (${w.last_event_at ? `último aviso ${formatDateTime(w.last_event_at, tz)}` : "sin avisos todavía"})`).join(", ") : "ningún número conectado"}</Ok></li>
+            <li><Ok ok={whatsappEnv() !== null}>Envío de WhatsApp: {whatsappEnv() ? "token registrado" : "falta el token de Meta en el servidor"}</Ok></li>
+            {(integ.whatsapp_failed_7d > 0 || integ.whatsapp_stuck > 0) && (
+              <li><Ok ok={false}>{integ.whatsapp_failed_7d} WhatsApp fallidos en 7 días{integ.whatsapp_stuck > 0 ? ` · ${integ.whatsapp_stuck} sin confirmar` : ""}</Ok></li>
+            )}
+            <li><Ok ok={ai !== null}>IA: {ai ? `activa con ${providerLabel[ai.AI_PROVIDER]}` : "sin configurar"}</Ok></li>
+          </ul>
+          <Table
+            headers={["Usuario", "Cuenta de Google", "Última sincronización de Gmail"]}
+            empty="Nadie ha conectado su cuenta de Google todavía."
+            rows={integ.google.map((g) => {
+              const d = daysSince(g.last_sync_at);
+              return [g.user, g.google_email,
+                <Ok key="s" ok={d !== null && d < STALE_DAYS}>{g.last_sync_at ? `${formatDateTime(g.last_sync_at, tz)}${d !== null && d >= STALE_DAYS ? ` (hace ${d} días)` : ""}` : "Nunca"}</Ok>];
+            })}
+          />
+          {integ.last_errors.length > 0 && (
+            <Table headers={["Fecha", "Para", "Error de WhatsApp"]} empty=""
+              rows={integ.last_errors.map((e) => [formatDateTime(e.sent_at, tz), e.to_phone, e.error ?? "—"])} />
+          )}
+        </Section>
+      )}
 
       {canStructure.data && org.data && (
         <Section title="Reglas comerciales">
