@@ -66,6 +66,6 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 - P2 Scoring explicable. Hecho: 7 factores por reglas (sin IA ni atributos sensibles), pesos en Administración, desglose y fecha en la ficha.
 - P2 Next Best Action. Hecho (reglas): en Mi día, oportunidades con cierre vencido e instituciones sin oportunidad abierta ordenadas por puntaje.
 - P2 Cross-sell. Hecho (reglas): la ficha lista productos activos que aún no se le han ofrecido a la institución, con atajo a crear la oportunidad.
-- P2 Consultas analíticas en lenguaje natural.
+- P2 Consultas analíticas en lenguaje natural. Hecho: página Consultas con menú fijo (venta, margen, unidades, ganadas, perdidas y pipeline por mes, proveedor, vendedor, etapa o empresa) que funciona sin IA; con IA configurada, la pregunta se traduce a ese menú (nunca SQL libre) y los datos se calculan con los permisos del usuario. Falta probar con una clave real.
 
 Cada historia debe incorporar criterios de aceptación, permisos, estados UI, pruebas y documentación.
