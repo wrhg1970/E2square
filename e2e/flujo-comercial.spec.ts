@@ -1,7 +1,10 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { E2E_USER, localSupabase } from "./global-setup";
+
+// Abre un formulario que está detrás de su botón (<details> con <summary>).
+const openForm = (page: Page, label: string | RegExp) => page.locator("summary").filter({ hasText: label }).first().click();
 
 // Flujo crítico del piloto: login → institución → oportunidad → productos → actividad → ganada → dashboard → exportación.
 test.describe.configure({ mode: "serial" });
@@ -37,8 +40,9 @@ async function wonCount(page: import("@playwright/test").Page) {
 
 test("define el porcentaje de comisión del agente", async ({ page }) => {
   await page.goto("/comisiones");
-  await page.getByLabel("Agente").selectOption({ label: E2E_USER.email });
-  await page.getByLabel("Producto").selectOption({ label: "IHS" });
+  await openForm(page, "Agregar o cambiar porcentaje");
+  await page.getByLabel("Agente").fill(E2E_USER.email);
+  await page.getByLabel("Producto").fill("IHS");
   await page.getByLabel("Porcentaje").fill("10");
   await page.getByLabel("Calcular sobre").selectOption({ label: "Margen" });
   await page.getByRole("button", { name: "Guardar porcentaje" }).click();
@@ -127,7 +131,7 @@ test("la venta ganada genera su comisión pendiente", async ({ page }) => {
   expect(csv).toContain("Fecha,Agente,Oportunidad,Producto,Tipo,Reparto %,Base,Monto base,%,Comisión,Moneda,Estado");
   expect(csv).toMatch(new RegExp(`IHS ${stamp}.*,Venta,100,Margen,600,10,60,USD,Pendiente`));
   await page.goto("/comisiones?mes=2020-01&estado=all");
-  await expect(page.getByText("No hay comisiones en este estado este mes.")).toBeVisible();
+  await expect(page.getByText("No hay comisiones en enero de 2020.")).toBeVisible();
 });
 
 test("avisa antes de crear una institución duplicada", async ({ page }) => {
@@ -160,7 +164,7 @@ test("el recordatorio aparece en Mi día antes de la fecha", async ({ page }) =>
   await page.goto("/mi-dia");
   // Acotado al formulario: de corridas anteriores puede haber otras actividades con su propio "Fecha y hora".
   const form = page.locator("details").filter({ hasText: "Tarea interna o actividad sin institución" });
-  await form.getByText("Tarea interna o actividad sin institución").click();
+  await form.locator("summary").click();
   await form.getByLabel("Asunto").fill(`Recordar ${stamp}`);
   await form.getByLabel("Fecha y hora").fill(`${tomorrow}T00:01`);
   await form.getByLabel("Recordatorio").selectOption({ label: "1 día antes" });
@@ -176,8 +180,9 @@ test("en celular el menú lleva a Mi día", async ({ page }) => {
   await page.getByText("Menú").click();
   await page.getByRole("link", { name: /Mi día/ }).first().click();
   await expect(page.getByRole("heading", { name: "Mi día" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /^Instituciones para abrir oportunidad/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /^Cierre estimado ya pasó/ })).toBeVisible();
+  // Los bloques vacíos no se muestran; las cifras de arriba siempre.
+  await expect(page.getByText("Sin próxima actividad", { exact: true })).toBeVisible();
+  await expect(page.getByText("Hechas hoy", { exact: true })).toBeVisible();
 });
 
 test("administra ámbitos y no permite auto-bloquearse", async ({ page }) => {
@@ -216,13 +221,16 @@ test("la auditoría financiera filtra montos y comisiones y se exporta", async (
 });
 
 test("activa y desactiva una automatización", async ({ page }) => {
-  await page.goto("/administracion");
-  const rule = page.getByRole("listitem").filter({ hasText: "Primer contacto." });
+  await page.goto("/administracion?seccion=reglas");
+  const rule = page.getByRole("listitem").filter({ hasText: "Primer contacto" });
+  await rule.locator("summary").click();
   await rule.getByRole("checkbox").check();
   await rule.getByLabel("Vence en (días)").fill("2");
   await rule.getByRole("button", { name: "Guardar" }).click();
   await expect(rule.getByText("Regla activada.")).toBeVisible();
   await page.reload();
+  await expect(rule.getByText(/^Activa · vence en 2 días/)).toBeVisible();
+  await rule.locator("summary").click();
   await expect(rule.getByRole("checkbox")).toBeChecked();
   await expect(rule.getByLabel("Vence en (días)")).toHaveValue("2");
   await rule.getByRole("checkbox").uncheck();
@@ -231,7 +239,7 @@ test("activa y desactiva una automatización", async ({ page }) => {
 });
 
 test("ajusta los pesos del puntaje y valida en servidor", async ({ page }) => {
-  await page.goto("/administracion");
+  await page.goto("/administracion?seccion=reglas");
   const form = page.locator("section").filter({ hasText: "Puntaje de instituciones" });
   await form.getByLabel("Urgencia").fill("12");
   await form.getByRole("button", { name: "Guardar pesos" }).click();
@@ -315,7 +323,7 @@ test("crea un proveedor con sus productos y los busca", async ({ page }) => {
 });
 
 test("administración muestra el estado de las integraciones", async ({ page }) => {
-  await page.goto("/administracion");
+  await page.goto("/administracion?seccion=integraciones");
   const panel = page.locator("section").filter({ has: page.getByRole("heading", { name: "Estado de integraciones" }) });
   await expect(panel.getByText("faltan las credenciales en el servidor")).toBeVisible();
   await expect(panel.getByText("IA: sin configurar")).toBeVisible();
@@ -334,17 +342,18 @@ test("integraciones explica qué falta si Google no está configurado", async ({
 test("arma, lanza y mide una campaña", async ({ page }) => {
   const name = `Campaña E2E ${stamp}`;
   await page.goto("/campanas");
-  await page.getByText("Nueva campaña").click();
+  await openForm(page, /Nueva campaña|Crear la primera campaña/);
   await page.getByLabel("Nombre").fill(name);
   await page.getByLabel("Inicio").fill(new Date().toISOString().slice(0, 10));
   await page.getByRole("button", { name: "Crear campaña" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
+  await openForm(page, "Agregar paso");
   for (const [day, type, subject] of [["0", "Llamada", "Invitar"], ["3", "Correo", "Enviar folleto"]]) {
     await page.getByLabel("Día", { exact: true }).fill(day);
     await page.getByLabel("Tipo de paso").selectOption({ label: type });
     await page.getByLabel("Qué hacer").fill(subject);
     await page.getByRole("button", { name: "Agregar paso" }).click();
-    await expect(page.getByText(`${type} · ${subject}`)).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: subject }).filter({ hasText: type })).toBeVisible();
   }
   await page.getByLabel("Colegio", { exact: true }).check();
   await page.getByRole("button", { name: "Agregar a la audiencia" }).click();
@@ -353,7 +362,7 @@ test("arma, lanza y mide una campaña", async ({ page }) => {
   await page.getByRole("button", { name: "Lanzar campaña" }).click();
   await expect(page.getByText(/^Lanzada el /)).toBeVisible();
   await expect(page.getByRole("button", { name: "Agregar paso" })).toHaveCount(0);
-  await expect(page.getByText("Correo · Enviar folleto")).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "Enviar folleto" }).filter({ hasText: "Correo" })).toBeVisible();
   await expect(page.getByText(/Activa/).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Crear oportunidad" }).first()).toBeVisible();
   const pending = page.getByText("Tareas pendientes").locator("..");
@@ -373,8 +382,8 @@ test("busca documentos y muestra sus versiones", async ({ page }) => {
   await rest("documents", { method: "POST", body: JSON.stringify({ ...doc(2), root_id: v1.root_id }) });
 
   await page.getByRole("link", { name: "Documentos" }).first().click();
-  await page.getByLabel("Buscar").fill(`Propuesta ${stamp}`);
-  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByLabel("Buscar documento").fill(`Propuesta ${stamp}`);
+  await page.keyboard.press("Enter");
   const rows = page.getByRole("row").filter({ hasText: `Propuesta ${stamp}.pdf` });
   await expect(rows).toHaveCount(2);
   await expect(rows.filter({ hasText: "v2" })).toHaveCount(1);
@@ -388,6 +397,7 @@ test("busca documentos y muestra sus versiones", async ({ page }) => {
 
 test("configura bono, escalones y cobranza de comisiones", async ({ page }) => {
   await page.goto("/comisiones");
+  await openForm(page, "Editar bonos y escalones");
   await page.getByLabel("Escalones (% meta : % extra)").fill("cien");
   await page.getByRole("button", { name: "Guardar esquemas" }).click();
   await expect(page.getByText("Escribe los escalones como 100:1, 120:2")).toBeVisible();
@@ -408,6 +418,7 @@ test("configura bono, escalones y cobranza de comisiones", async ({ page }) => {
 test("crea una meta trimestral, muestra su ritmo y la repite", async ({ page }) => {
   const name = `Meta E2E ${stamp}`;
   await page.goto("/metas");
+  await openForm(page, /Nueva meta|Crear la primera meta/);
   await page.getByLabel("Nombre").fill(name);
   await page.getByLabel("Qué se mide").selectOption({ label: "Unidades vendidas" });
   await page.getByLabel("Objetivo", { exact: true }).fill("100");
@@ -417,8 +428,12 @@ test("crea una meta trimestral, muestra su ritmo y la repite", async ({ page }) 
   await expect(page.getByText("Meta creada.")).toBeVisible();
   const goal = page.getByRole("listitem").filter({ hasText: name });
   await expect(goal).toHaveCount(1);
-  await expect(goal.getByText(/^Ritmo: a hoy debería ir en \d+%/)).toBeVisible();
+  await expect(goal.getByText(/^(A buen ritmo|Atrasada \d+ pts)$/)).toBeVisible();
+  await goal.locator("summary").click();
+  await expect(goal.getByText(/A hoy debería ir en \d+%/)).toBeVisible();
   await goal.getByRole("button", { name: "Repetir en el siguiente periodo" }).click();
+  // La copia es del siguiente trimestre: aparece en "Todas", no en "Vigentes".
+  await page.goto("/metas?ver=todas");
   await expect(page.getByRole("listitem").filter({ hasText: name })).toHaveCount(2);
 });
 
@@ -455,6 +470,7 @@ test("reparte una meta general entre vendedores", async ({ page }) => {
   const { url, key } = localSupabase();
   const sellers = [`vende1-${stamp}@e2square.test`, `vende2-${stamp}@e2square.test`];
   await page.goto("/administracion");
+  await openForm(page, "Invitar usuario");
   const invite = page.locator("form").filter({ has: page.getByRole("button", { name: "Invitar" }) });
   for (const email of sellers) {
     await invite.getByLabel("Correo").fill(email);
@@ -471,6 +487,7 @@ test("reparte una meta general entre vendedores", async ({ page }) => {
 
   const name = `Reparto E2E ${stamp}`;
   await page.goto("/metas");
+  await openForm(page, /Nueva meta|Crear la primera meta/);
   await page.getByLabel("Nombre").fill(name);
   await page.getByLabel("Qué se mide").selectOption({ label: "Unidades vendidas" });
   await page.getByLabel("Objetivo", { exact: true }).fill("9");
@@ -480,6 +497,7 @@ test("reparte una meta general entre vendedores", async ({ page }) => {
   await expect(page.getByText("Meta creada.")).toBeVisible();
 
   const goal = page.getByRole("listitem").filter({ hasText: name });
+  await goal.locator("summary").first().click();
   await goal.getByText("Repartir entre vendedores").click();
   for (const email of sellers) await goal.getByRole("checkbox", { name: email }).check();
   await goal.getByLabel(`Objetivo de ${sellers[0]}`).fill("5");
@@ -498,9 +516,11 @@ test("consulta la venta por vendedor sin IA", async ({ page }) => {
   await page.getByRole("link", { name: "Consultas" }).first().click();
   await expect(page.getByRole("heading", { name: "Consultas" })).toBeVisible();
   await expect(page.getByText(/se activan cuando el administrador configure la IA/)).toBeVisible();
+  // Los filtros se aplican solos al cambiarlos.
   await page.getByLabel("Qué medir").selectOption({ label: "Unidades vendidas" });
+  await expect(page).toHaveURL(/metric=won_units/);
   await page.getByLabel("Agrupar por").selectOption({ label: "Vendedor" });
-  await page.getByRole("button", { name: "Consultar" }).click();
+  await expect(page).toHaveURL(/group=owner/);
   await expect(page.getByRole("heading", { name: /^Unidades vendidas por vendedor/ })).toBeVisible();
   await expect(page.getByRole("table", { name: "Unidades vendidas" }).getByRole("rowheader").first()).toBeVisible();
   await page.goto("/consultas?metric=salarios&group=total&from=2026-01-01&to=2026-12-31");
@@ -509,18 +529,21 @@ test("consulta la venta por vendedor sin IA", async ({ page }) => {
 
 test("arma un equipo y le pone una meta", async ({ page }) => {
   const team = `Equipo E2E ${stamp}`;
-  await page.goto("/administracion");
+  await page.goto("/administracion?seccion=equipos");
+  await openForm(page, "Crear equipo");
   await page.getByLabel("Nombre del equipo").fill(team);
   await page.getByRole("button", { name: "Crear equipo" }).click();
   await expect(page.getByRole("cell", { name: team, exact: true })).toBeVisible();
+  await openForm(page, "Asignar persona a un equipo");
   const assign = page.locator("form").filter({ has: page.getByRole("button", { name: "Asignar al equipo" }) });
   await assign.getByLabel("Equipo").selectOption({ label: team });
-  await assign.getByLabel("Persona").selectOption({ label: `vende1-${stamp}@e2square.test` });
+  await assign.getByLabel("Persona").fill(`vende1-${stamp}@e2square.test`);
   await assign.getByRole("button", { name: "Asignar al equipo" }).click();
   await expect(page.getByRole("row", { name: new RegExp(team) })).toContainText(`vende1-${stamp}@e2square.test`);
 
   const name = `Meta equipo ${stamp}`;
   await page.goto("/metas");
+  await openForm(page, /Nueva meta|Crear la primera meta/);
   await page.getByLabel("Nombre").fill(name);
   await page.getByLabel("Qué se mide").selectOption({ label: "Unidades vendidas" });
   await page.getByLabel("Objetivo", { exact: true }).fill("20");
@@ -531,6 +554,7 @@ test("arma un equipo y le pone una meta", async ({ page }) => {
   await expect(page.getByText("Meta creada.")).toBeVisible();
   const goal = page.getByRole("listitem").filter({ hasText: name });
   await expect(goal).toContainText(`Equipo: ${team}`);
+  await goal.locator("summary").first().click();
   await goal.getByText("Repartir entre vendedores").click();
   await expect(goal.getByRole("checkbox", { name: `vende1-${stamp}@e2square.test` })).toBeChecked();
 });
