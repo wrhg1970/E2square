@@ -2,12 +2,14 @@
 export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 
 export const documentCategories = {
-  proposal: "Propuesta",
-  contract: "Contrato",
-  presentation: "Presentación",
-  price_list: "Lista de precios",
-  material: "Material",
-  other: "Otro",
+  contract: "Contratos y convenios",
+  proposal: "Propuestas comerciales",
+  accreditation: "Acreditaciones y licencias",
+  legal: "Legal y fiscal",
+  presentation: "Presentaciones",
+  price_list: "Listas de precios",
+  material: "Materiales",
+  other: "Otros",
 } as const;
 
 export const ALLOWED_MIME = [
@@ -34,3 +36,25 @@ export function validateFile(file: { name: string; size: number; type: string })
 
 export const formatSize = (bytes: number) =>
   bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+// Vigencia: días que faltan (negativo = vencido). "soon" = vence en 30 días o menos.
+export const SOON_DAYS = 30;
+export type Validity = { kind: "none" } | { kind: "valid" | "soon" | "expired"; days: number };
+export const validityFilters = { vigentes: "Vigentes", por_vencer: "Por vencer", vencidos: "Vencidos", sin_vigencia: "Sin vigencia" } as const;
+const kindOfFilter = { vigentes: "valid", por_vencer: "soon", vencidos: "expired", sin_vigencia: "none" } as const;
+
+export function validityOf(expiresOn: string | null | undefined, today: string): Validity {
+  if (!expiresOn) return { kind: "none" };
+  const days = Math.round((Date.parse(expiresOn) - Date.parse(today)) / 86_400_000);
+  return { kind: days < 0 ? "expired" : days <= SOON_DAYS ? "soon" : "valid", days };
+}
+
+export const matchesValidity = (v: Validity, filter: keyof typeof validityFilters) => v.kind === kindOfFilter[filter];
+
+export function validityLabel(v: Validity): string {
+  if (v.kind === "none") return "Sin vigencia";
+  if (v.kind === "expired") return v.days === -1 ? "Vencido ayer" : `Vencido hace ${-v.days} días`;
+  if (v.days === 0) return "Vence hoy";
+  if (v.kind === "soon") return v.days === 1 ? "Vence mañana" : `Vence en ${v.days} días`;
+  return "Vigente";
+}

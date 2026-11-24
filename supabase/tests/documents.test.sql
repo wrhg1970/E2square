@@ -31,8 +31,8 @@ select is((select count(*)::int from storage.objects), 1, 'el dueño de la carte
 select throws_ok($$ insert into storage.objects (bucket_id, name, owner_id) values ('documents', (select x from orgs) || '/intruso.pdf', auth.uid()::text) $$,
   '42501', null, 'no se sube a la carpeta de otra organización');
 select throws_ok($$ insert into public.documents (organization_id, storage_path, file_name, mime_type, size_bytes, uploaded_by)
-  values (public.current_org_id(), (select d from orgs) || '/suelto.pdf', 'suelto.pdf', 'application/pdf', 10, public.current_profile_id()) $$,
-  '23514', null, 'un documento siempre está ligado a algo');
+  values (public.current_org_id(), (select x from orgs) || '/suelto.pdf', 'suelto.pdf', 'application/pdf', 10, public.current_profile_id()) $$,
+  '23514', null, 'un documento sin vínculo (general) tampoco sale de la carpeta de su organización');
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000d2', true);
 select is((select count(*)::int from public.documents), 0, 'otro vendedor no ve el documento');
