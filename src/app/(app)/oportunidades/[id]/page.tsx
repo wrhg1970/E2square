@@ -13,6 +13,7 @@ import { addItem, removeItem, setCancelled, updateOpportunity } from "@/modules/
 import { formatMoney, opportunityStatuses } from "@/modules/opportunities/labels";
 import { StageForm } from "@/modules/opportunities/stage-form";
 import { formatDay } from "@/modules/activities/time";
+import { Reveal } from "@/components/ui/reveal";
 
 const dateTime = (d: string) => new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(d));
 
@@ -55,11 +56,19 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
   const personName = new Map((owners.data ?? []).map((p) => [p.id, p.full_name || p.email]));
   const stage = (stages.data ?? []).find((s) => s.id === opp.stage_id);
   const isOpen = opp.status === "open";
+  const primary = (contacts ?? []).find((c) => c.id === opp.primary_contact_id);
+  const facts: [string, string][] = [
+    ["Responsable", opp.owner_id ? personName.get(opp.owner_id) ?? "—" : "Sin asignar"],
+    ["Contacto principal", primary ? `${primary.first_name} ${primary.last_name}`.trim() : "Sin definir"],
+    ["Cierre estimado", opp.expected_close_date ? formatDay(opp.expected_close_date) : "Sin fecha"],
+    ["Origen", opp.source || "—"],
+    ["Competidor", opp.competitor || "—"],
+  ];
   const marginPct = Number(opp.amount) > 0 ? Math.round((Number(opp.margin) / Number(opp.amount)) * 100) : null;
 
   return (
     <div className="max-w-6xl space-y-6">
-      <Link href="/oportunidades" className="text-sm text-muted-foreground underline">Oportunidades</Link>
+      <Link href="/oportunidades" className="text-sm text-muted-foreground hover:underline">← Oportunidades</Link>
 
       <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-band p-6 text-white shadow-lg shadow-band/20">
         <div>
@@ -75,14 +84,22 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
             {opp.expected_close_date && ` · Cierre estimado ${formatDay(opp.expected_close_date)}`}
           </p>
         </div>
-        <dl className="grid grid-cols-3 gap-4 rounded-lg bg-white/10 p-4 text-right">
-          <div><dt className="text-xs opacity-70">Venta</dt><dd className="text-xl font-semibold">{formatMoney(opp.amount, opp.currency_code)}</dd></div>
-          <div><dt className="text-xs opacity-70">Costo</dt><dd className="text-xl font-semibold">{formatMoney(opp.cost, opp.currency_code)}</dd></div>
-          <div><dt className="text-xs opacity-70">Margen</dt><dd className="text-xl font-semibold">{formatMoney(opp.margin, opp.currency_code)}{marginPct !== null && <span className="ml-1 text-sm font-normal">({marginPct}%)</span>}</dd></div>
+        <dl className="grid w-full grid-cols-3 gap-4 rounded-lg bg-white/10 p-4 text-right sm:w-auto">
+          <div><dt className="text-xs opacity-70">Venta</dt><dd className="text-lg font-semibold sm:text-xl">{formatMoney(opp.amount, opp.currency_code)}</dd></div>
+          <div><dt className="text-xs opacity-70">Costo</dt><dd className="text-lg font-semibold sm:text-xl">{formatMoney(opp.cost, opp.currency_code)}</dd></div>
+          <div><dt className="text-xs opacity-70">Margen</dt><dd className="text-lg font-semibold sm:text-xl">{formatMoney(opp.margin, opp.currency_code)}{marginPct !== null && <span className="ml-1 text-sm font-normal">({marginPct}%)</span>}</dd></div>
         </dl>
       </header>
 
-      {opp.status === "lost" && opp.loss_reason && <p className="text-sm">Motivo de pérdida: {opp.loss_reason}</p>}
+      {opp.status === "lost" && opp.loss_reason && <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">Motivo de pérdida: {opp.loss_reason}</p>}
+      {isOpen && !opp.next_activity_at && (
+        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900">
+          Esta oportunidad no tiene próxima actividad programada. Programa la siguiente llamada o visita en «Actividades».
+        </p>
+      )}
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="min-w-0 space-y-6">
 
       {canWrite && opp.status !== "cancelled" && (
         <section className="space-y-2 rounded-xl border border-border bg-background shadow-sm p-5">
@@ -96,11 +113,11 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
       )}
 
       <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
-        <h2 className="font-semibold">Productos</h2>
+        <h2 className="font-semibold">Productos {!!items.data?.length && <span className="text-sm font-normal text-muted-foreground">({items.data.length})</span>}</h2>
         {!items.data?.length ? (
-          <p className="text-sm text-muted-foreground">Sin productos. Agrega al menos uno para avanzar a Propuesta.</p>
+          <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">Sin productos. Agrega al menos uno para avanzar a Propuesta: el monto, el costo y el margen se calculan solos.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="text-muted-foreground">
               <tr>{["Producto", "Cantidad", "Precio", "Desc.", "Total", "Costo", ""].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
             </thead>
@@ -123,25 +140,24 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
         {canWrite && isOpen && (
-          <details className="rounded-md border border-border p-3">
-            <summary className="cursor-pointer text-sm font-medium">Agregar producto ({opp.currency_code})</summary>
+          <Reveal label={`Agregar producto (${opp.currency_code})`} variant={items.data?.length ? "outline" : "default"}>
             {listPrices.length > 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mb-3 text-xs text-muted-foreground">
                 Precios de lista: {listPrices.map((p) => `${productName.get(p.product_id)} – ${p.name}: ${formatMoney(p.unit_price, p.currency_code)}/${p.unit_name} (costo ${formatMoney(p.unit_cost, p.currency_code)})`).join(" · ")}
               </p>
             )}
-            <ActionForm action={addItem.bind(null, id)} submitLabel="Agregar" className="mt-3 grid gap-3 sm:grid-cols-6 sm:items-end">
-              <SelectField label="Producto" name="product_id" options={[{ value: "", label: "Elige" }, ...itemOptions.map((p) => ({ value: p.id, label: p.name }))]} required className="sm:col-span-2" />
+            <ActionForm action={addItem.bind(null, id)} submitLabel="Agregar" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:items-end">
+              <SelectField label="Producto" name="product_id" options={[{ value: "", label: "Elige" }, ...itemOptions.map((p) => ({ value: p.id, label: p.name }))]} required />
               <Field label="Cantidad" name="quantity" type="number" step="any" min={0} required />
               <Field label="Precio unitario" name="unit_price" type="number" step="0.01" min={0} required />
               <Field label="Desc. %" name="discount_pct" type="number" step="0.01" min={0} max={100} />
               <Field label="Costo unitario" name="unit_cost" type="number" step="0.01" min={0} />
-              <Field label="Descripción" name="description" className="sm:col-span-6" />
+              <Field label="Descripción" name="description" />
             </ActionForm>
-          </details>
+          </Reveal>
         )}
       </section>
 
@@ -149,52 +165,57 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
 
       <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
         <h2 className="font-semibold">Actividades</h2>
-        {isOpen && !opp.next_activity_at && (
-          <p role="alert" className="text-sm font-medium text-amber-700">Esta oportunidad no tiene próxima actividad programada.</p>
-        )}
         {activities.length > 0 && (
           <ul className="divide-y divide-border">
             {activities.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={Boolean(canWrite)} />)}
           </ul>
         )}
+        {activities.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay actividades.</p>}
         {canWrite && (
-          <details className="rounded-md border border-border p-3" open={isOpen && !opp.next_activity_at}>
-            <summary className="cursor-pointer text-sm font-medium">Registrar o programar actividad</summary>
-            <div className="mt-3">
-              <NewActivityForm opportunityId={id} contacts={(contacts ?? []).map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}`.trim() }))} />
-            </div>
-          </details>
+          <Reveal label="Registrar o programar actividad" variant={isOpen && !opp.next_activity_at ? "default" : "outline"} open={isOpen && !opp.next_activity_at}>
+            <NewActivityForm opportunityId={id} contacts={(contacts ?? []).map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}`.trim() }))} />
+          </Reveal>
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {canWrite && (
-          <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
-            <h2 className="font-semibold">Datos</h2>
-            <ActionForm action={updateOpportunity.bind(null, id)} submitLabel="Guardar" className="grid gap-3 sm:grid-cols-2">
-              <Field label="Nombre" name="name" defaultValue={opp.name} required />
-              <Field label="Probabilidad %" name="probability" type="number" min={0} max={100} defaultValue={opp.probability} required />
-              <Field label="Cierre estimado" name="expected_close_date" type="date" defaultValue={opp.expected_close_date ?? ""} />
-              <SelectField label="Contacto principal" name="primary_contact_id" defaultValue={opp.primary_contact_id ?? ""} options={[{ value: "", label: "Sin definir" }, ...(contacts ?? []).map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}`.trim() }))]} />
-              <SelectField label="Responsable" name="owner_id" defaultValue={opp.owner_id ?? ""} options={(owners.data ?? []).map((o) => ({ value: o.id, label: o.full_name || o.email }))} />
-              <Field label="Origen" name="source" defaultValue={opp.source ?? ""} />
-              <Field label="Competidor" name="competitor" defaultValue={opp.competitor ?? ""} />
-              <TextareaField label="Notas" name="notes" defaultValue={opp.notes ?? ""} className="sm:col-span-2" />
-            </ActionForm>
-            <form action={setCancelled.bind(null, id, opp.status !== "cancelled")}>
-              <button type="submit" className="text-sm text-muted-foreground underline">
-                {opp.status === "cancelled" ? "Reabrir oportunidad" : "Cancelar oportunidad"}
-              </button>
-            </form>
-          </section>
-        )}
-        <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
-          <h2 className="font-semibold">Comisión</h2>
-          <OpportunityCommissionPanel opp={opp} meId={meId} people={owners.data ?? []} />
-        </section>
         <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
           <h2 className="font-semibold">Documentos</h2>
           <DocumentsPanel opportunityId={id} canWrite={Boolean(canWrite)} />
+        </section>
+      </div>
+
+      <aside className="space-y-6">
+        <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
+          <h2 className="font-semibold">Datos</h2>
+          <dl className="space-y-2 text-sm">
+            {facts.map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-3"><dt className="text-muted-foreground">{k}</dt><dd className="text-right font-medium">{v}</dd></div>
+            ))}
+          </dl>
+          {opp.notes && <p className="whitespace-pre-line border-t border-border pt-3 text-sm text-muted-foreground">{opp.notes}</p>}
+          {canWrite && (
+            <Reveal label="Editar datos" variant="outline">
+              <ActionForm action={updateOpportunity.bind(null, id)} submitLabel="Guardar" className="grid gap-3">
+                <Field label="Nombre" name="name" defaultValue={opp.name} required />
+                <Field label="Probabilidad %" name="probability" type="number" min={0} max={100} defaultValue={opp.probability} required />
+                <Field label="Cierre estimado" name="expected_close_date" type="date" defaultValue={opp.expected_close_date ?? ""} />
+                <SelectField label="Contacto principal" name="primary_contact_id" defaultValue={opp.primary_contact_id ?? ""} options={[{ value: "", label: "Sin definir" }, ...(contacts ?? []).map((c) => ({ value: c.id, label: `${c.first_name} ${c.last_name}`.trim() }))]} />
+                <SelectField label="Responsable" name="owner_id" defaultValue={opp.owner_id ?? ""} options={(owners.data ?? []).map((o) => ({ value: o.id, label: o.full_name || o.email }))} />
+                <Field label="Origen" name="source" defaultValue={opp.source ?? ""} />
+                <Field label="Competidor" name="competitor" defaultValue={opp.competitor ?? ""} />
+                <TextareaField label="Notas" name="notes" defaultValue={opp.notes ?? ""} />
+              </ActionForm>
+              <form action={setCancelled.bind(null, id, opp.status !== "cancelled")} className="mt-4 border-t border-border pt-3">
+                <button type="submit" className="text-sm text-muted-foreground underline">
+                  {opp.status === "cancelled" ? "Reabrir oportunidad" : "Cancelar oportunidad"}
+                </button>
+              </form>
+            </Reveal>
+          )}
+        </section>
+        <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
+          <h2 className="font-semibold">Comisión</h2>
+          <OpportunityCommissionPanel opp={opp} meId={meId} people={owners.data ?? []} />
         </section>
         <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
           <div className="flex items-center justify-between gap-3">
@@ -210,6 +231,7 @@ export default async function OpportunityPage({ params }: PageProps<"/oportunida
             ))}
           </ol>
         </section>
+      </aside>
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ import { ACTIVITY_COLUMNS, type ActivityRow } from "@/modules/activities/activit
 import { activityTypes } from "@/modules/activities/labels";
 import { addDays, dayIn, weekStart, zonedToUtc } from "@/modules/activities/time";
 import { buttonVariants } from "@/components/ui/button";
+import { AutoForm } from "@/components/ui/auto-form";
+import { Pill } from "@/components/ui/pill";
 
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const uuid = (v: unknown) => (typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v) ? v : null);
@@ -42,6 +44,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const instName = new Map((insts ?? []).map((i) => [i.id, i.name]));
   const time = (iso: string) => new Intl.DateTimeFormat("es-MX", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
   const dayLabel = (d: string) => new Intl.DateTimeFormat("es-MX", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T12:00:00Z`));
+  const pending = rows.filter((a) => a.status === "pending");
+  const overdueCount = pending.filter((a) => new Date(a.due_at!) < new Date()).length;
   const qs = (semana: string) => `/calendario?${new URLSearchParams({ semana, ...(owner !== me.id && { vendedor: owner }) })}`;
 
   return (
@@ -49,20 +53,26 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       <div className="on-band page-header flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Calendario</h1>
-          <p className="text-sm text-muted-foreground">Semana del {dayLabel(start)} al {dayLabel(addDays(start, 6))}</p>
+          <p className="text-sm text-muted-foreground">
+            Semana del {dayLabel(start)} al {dayLabel(addDays(start, 6))} · {rows.length} {rows.length === 1 ? "actividad" : "actividades"} · {pending.length} pendientes
+            {overdueCount > 0 && <> · <b className="text-amber-300">{overdueCount} vencidas</b></>}
+          </p>
         </div>
         <nav aria-label="Semana" className="flex gap-1 text-sm">
-          <Link href={qs(addDays(start, -7))} className={buttonVariants({ variant: "outline" })}>← Anterior</Link>
-          <Link href={qs(weekStart(today))} className={buttonVariants({ variant: "outline" })}>Hoy</Link>
-          <Link href={qs(addDays(start, 7))} className={buttonVariants({ variant: "outline" })}>Siguiente →</Link>
+          <Link href={qs(addDays(start, -7))} className={buttonVariants({ variant: "outline" })} aria-label="Semana anterior">←</Link>
+          <Link href={qs(weekStart(today))} className={buttonVariants({ variant: "outline" })}>Esta semana</Link>
+          <Link href={qs(addDays(start, 7))} className={buttonVariants({ variant: "outline" })} aria-label="Semana siguiente">→</Link>
         </nav>
       </div>
 
-      <form className="flex flex-wrap items-end gap-3">
-        <input type="hidden" name="semana" value={start} />
-        <SelectField label="Vendedor" name="vendedor" defaultValue={owner} options={(people ?? []).map((p) => ({ value: p.id, label: p.id === me.id ? "Yo" : p.full_name || p.email }))} />
-        <button type="submit" className={buttonVariants({ variant: "outline" })}>Ver</button>
-      </form>
+      {(people ?? []).length > 1 && (
+        <AutoForm className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="semana" value={start} />
+          <SelectField label="Ver la semana de" name="vendedor" defaultValue={owner} className="w-full sm:w-64"
+            options={(people ?? []).map((p) => ({ value: p.id, label: p.id === me.id ? "Yo" : p.full_name || p.email }))} />
+          <noscript><button type="submit" className={buttonVariants({ variant: "outline" })}>Ver</button></noscript>
+        </AutoForm>
+      )}
 
       {error && <p role="alert" className="text-sm text-red-700">No se pudo cargar el calendario. Recarga la página.</p>}
 
@@ -70,7 +80,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {days.map((d) => {
           const items = rows.filter((a) => a.due_at && dayIn(new Date(a.due_at), tz) === d);
           return (
-            <section key={d} aria-label={dayLabel(d)} className={`min-h-28 space-y-2 rounded-xl border bg-background p-3 shadow-sm ${d === today ? "border-primary ring-1 ring-primary" : "border-border"}`}>
+            <section key={d} aria-label={dayLabel(d)} className={`space-y-2 rounded-xl border bg-background p-3 shadow-sm md:min-h-40 ${d === today ? "border-primary ring-1 ring-primary" : "border-border"} ${items.length === 0 && d !== today ? "max-md:hidden" : ""}`}>
               <h2 className={`text-sm first-letter:uppercase ${d === today ? "font-semibold" : "text-muted-foreground"}`}>{dayLabel(d)}</h2>
               {items.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Libre</p>
@@ -80,13 +90,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                     const overdue = a.status === "pending" && new Date(a.due_at!) < new Date();
                     const href = a.opportunity_id ? `/oportunidades/${a.opportunity_id}` : a.institution_id ? `/instituciones/${a.institution_id}` : "/mi-dia";
                     return (
-                      <li key={a.id} className="rounded-md bg-muted/60 p-2 text-xs">
-                        <p className={overdue ? "font-medium text-red-700" : "text-muted-foreground"}>
-                          {time(a.due_at!)} · {activityTypes[a.activity_type as keyof typeof activityTypes]}
-                          {a.status === "done" && " · Hecha"}
-                          {overdue && " · Vencida"}
+                      <li key={a.id} className={`rounded-md border-l-[3px] bg-muted/60 p-2 text-xs ${overdue ? "border-l-red-500" : a.status === "done" ? "border-l-teal-500" : "border-l-sky-400"}`}>
+                        <p className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-semibold tabular-nums">{time(a.due_at!)}</span>
+                          <span className="text-muted-foreground">{activityTypes[a.activity_type as keyof typeof activityTypes]}</span>
+                          {a.status === "done" && <Pill tone="teal">Hecha</Pill>}
+                          {overdue && <Pill tone="red">Vencida</Pill>}
                         </p>
-                        <Link href={href} className={`block font-medium underline ${a.status === "done" ? "line-through" : ""}`}>{a.subject}</Link>
+                        <Link href={href} className={`mt-0.5 block font-medium hover:underline ${a.status === "done" ? "text-muted-foreground line-through" : ""}`}>{a.subject}</Link>
                         {a.institution_id && <p className="text-muted-foreground">{instName.get(a.institution_id)}</p>}
                       </li>
                     );
@@ -97,7 +108,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground">Las actividades sin fecha no aparecen aquí; están en Mi día, en “Sin fecha”.</p>
+      {rows.length === 0 && !error && (
+        <p className="text-center text-sm text-muted-foreground md:hidden">Semana libre. Programa actividades desde la ficha de una institución u oportunidad.</p>
+      )}
+      <p className="text-xs text-muted-foreground">Las actividades sin fecha no aparecen aquí; están en <Link href="/mi-dia" className="underline">Mi día</Link>, en “Sin fecha”.</p>
     </div>
   );
 }

@@ -7,6 +7,7 @@ export const campaignTypes = {
   email: "Correo", whatsapp: "WhatsApp", call: "Llamadas", event: "Evento", fair: "Feria", visit: "Visitas", other: "Otra",
 } as const;
 export const campaignStatuses = { draft: "Borrador", active: "Activa", finished: "Terminada", cancelled: "Cancelada" } as const;
+export const campaignTone: Record<string, "slate" | "teal" | "sky" | "red"> = { draft: "slate", active: "teal", finished: "sky", cancelled: "red" };
 
 const empty = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
 const opt = <T extends z.ZodType>(s: T) => z.preprocess(empty, s.nullable().optional());

@@ -43,3 +43,14 @@ E2Square: minimalista, moderna, ejecutiva. Alta densidad de información sin sat
 - No depender solo del color para indicar estado.
 - Formularios progresivos: mostrar campos avanzados solo cuando correspondan.
 - Mobile: priorizar Mi día, búsqueda, institución, oportunidad y actividad.
+
+## Patrones de pantalla (2026-11-24)
+Lineamientos aprobados por Will al rediseñar las pantallas, con su componente en `src/components/ui/`:
+- Cifras resumen arriba, dentro de la banda azul noche: `StatTile`.
+- Estatus, etapas y categorías como etiquetas de color con texto (no solo color): `Pill`.
+- Filtros de un clic, sin botón "Filtrar": `Segmented` (enlaces) y `AutoForm` (listas al cambiar, fechas al salir del campo, texto con Enter). Botones rápidos de periodo donde haya fechas.
+- Formularios de alta cerrados detrás de un botón, a todo el ancho y en bloques con título: `Reveal` + `FormBlock`.
+- Listas repetidas como tabla compacta; la fila se toca para ver detalle o editar (`<details>` por fila, como Metas y Automatizaciones).
+- Estados vacíos que explican qué hacer y ofrecen el botón para hacerlo: `EmptyState`. Los bloques vacíos de un tablero no se muestran.
+- Listas largas (personas, productos) con buscador en vez de desplegable: `ComboField` (el servidor sigue validando el id).
+- Pantallas con muchas secciones (Administración) se parten en pestañas para que lo buscado quede arriba sin desplazarse.
