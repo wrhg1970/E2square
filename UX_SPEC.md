@@ -21,6 +21,7 @@ E2Square: minimalista, moderna, ejecutiva. Alta densidad de información sin sat
 ## Pantallas principales
 1. Dashboard por rol.
 2. Mi día.
+2b. Calendario con vistas Día (agenda por hora), Semana y Mes; recuerda la última vista y en celular abre en Día.
 3. Listado de instituciones con filtros, vistas guardadas y carga Excel.
 4. Expediente institucional 360° con timeline.
 5. Contacto y mapa de decisores.
