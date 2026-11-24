@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { decrypt, encrypt } from "./crypto";
-import { extractEmails, gmailQuery, matchMessage } from "./gmail";
+import { buildRawEmail, extractEmails, gmailQuery, matchMessage } from "./gmail";
 
 describe("crypto", () => {
   const key = randomBytes(32).toString("base64");
@@ -40,5 +40,17 @@ describe("gmail", () => {
     expect(gmailQuery(null, now)).toBe("newer_than:30d -in:chats");
     expect(gmailQuery("2027-01-09T12:00:00Z", now)).toBe(`after:${Date.parse("2027-01-09T11:00:00Z") / 1000} -in:chats`);
     expect(gmailQuery("2026-01-01T00:00:00Z", now)).toBe(`after:${Date.parse("2026-12-11T00:00:00Z") / 1000} -in:chats`);
+  });
+});
+
+describe("buildRawEmail", () => {
+  it("codifica asunto y cuerpo en UTF-8 y no deja inyectar encabezados", () => {
+    const mime = Buffer.from(buildRawEmail("ana@uno.mx\r\nBcc: x@y.z", "Propuesta – año", "Hola\nAdiós"), "base64url").toString();
+    expect(mime).toContain("To: ana@uno.mxBcc: x@y.z\r\n");
+    expect(mime).not.toMatch(/^Bcc:/m);
+    const subject = /Subject: =\?UTF-8\?B\?(.+)\?=/.exec(mime)?.[1] ?? "";
+    expect(Buffer.from(subject, "base64").toString()).toBe("Propuesta – año");
+    const body = mime.split("\r\n\r\n")[1].replace(/\r\n/g, "");
+    expect(Buffer.from(body, "base64").toString()).toBe("Hola\r\nAdiós");
   });
 });
