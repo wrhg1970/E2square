@@ -1,9 +1,10 @@
-import { Globe, Mail, MapPin, MessageCircle, Pencil, Phone, User } from "lucide-react";
+import { ChevronDown, Globe, Mail, MapPin, MessageCircle, Pencil, Phone, Plus, User, UserRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ActionForm } from "@/components/ui/action-form";
+import { buttonVariants } from "@/components/ui/button";
 import { Field, SelectField, TextareaField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVITY_COLUMNS, ActivityItem, NewActivityForm, type ActivityRow } from "@/modules/activities/activity-panel";
@@ -20,6 +21,9 @@ import { whatsappEnv } from "@/modules/whatsapp/config";
 const consentLabel: Record<string, string> = { granted: "Aceptó WhatsApp", revoked: "No contactar" };
 const waStatus: Record<string, string> = { pending: "Enviando", sent: "Enviado", delivered: "Entregado", read: "Leído", failed: "Falló" };
 
+const card = "rounded-xl border border-border bg-background p-5 shadow-sm";
+// Formularios plegados detrás de un botón: la ficha se lee primero, se captura después.
+const addSummary = `${buttonVariants({ variant: "outline", size: "sm" })} cursor-pointer list-none group-open:bg-muted [&::-webkit-details-marker]:hidden`;
 const chip = "inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted";
 const date = (d: string) => new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(new Date(d));
 const digits = (p: string) => p.replace(/\D/g, "");
@@ -27,13 +31,27 @@ const href = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}
 
 function Card({ title, aside, children, className }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`space-y-3 rounded-xl border border-border bg-background shadow-sm p-5 ${className ?? ""}`}>
+    <section className={`space-y-3 ${card} ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-semibold">{title}</h2>
         {aside}
       </div>
       {children}
     </section>
+  );
+}
+
+// Un renglón del panel de contacto; si falta el dato lo dice, para que se vea qué capturar.
+function Line({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {
+  const empty = children === null || children === undefined || children === "" || children === false;
+  return (
+    <li className="flex gap-2.5">
+      <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+        {empty ? <p className="text-muted-foreground/70">Sin registrar</p> : <div className="break-words">{children}</div>}
+      </div>
+    </li>
   );
 }
 
@@ -118,6 +136,7 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
   const mail = primary?.email ?? inst.email;
   const phone = primary?.phone ?? inst.phone;
   const place = [inst.city, inst.region, inst.country_code].filter(Boolean).join(", ");
+  const address = [inst.address, place].filter(Boolean).join(", ");
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -163,16 +182,12 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
       </header>
 
       <nav aria-label="Acciones" className="flex flex-wrap items-center gap-2">
-        <span className={chip}><User className="size-4" aria-hidden />{owner ?? "Sin responsable"}</span>
         {mail && <a href={`mailto:${mail}`} className={chip}><Mail className="size-4" aria-hidden />Enviar correo</a>}
         {phone && <a href={`tel:${digits(phone)}`} className={chip}><Phone className="size-4" aria-hidden />Llamar</a>}
         {phone && (
           <a href={`https://wa.me/${digits(phone)}`} target="_blank" rel="noopener noreferrer" className={chip}>
             <MessageCircle className="size-4" aria-hidden />WhatsApp
           </a>
-        )}
-        {inst.website && (
-          <a href={href(inst.website)} target="_blank" rel="noopener noreferrer" className={chip}><Globe className="size-4" aria-hidden />Sitio web</a>
         )}
         {canWrite && (
           <a href="#editar" className={`${chip} ml-auto border-primary bg-primary text-primary-foreground hover:bg-primary/90`}>
@@ -181,26 +196,150 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
         )}
       </nav>
 
-      {score && (
-        <section aria-labelledby="puntaje" className="rounded-xl border border-border bg-background p-5 shadow-sm">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="puntaje" className="font-semibold">
-              Puntaje <span className={`ml-2 rounded-full px-2.5 py-0.5 text-sm ${scoreTone(score.score)}`}>{score.score ?? "—"} / 100</span>
-            </h2>
-            <p className="text-xs text-muted-foreground">Calculado: {formatDateTime(score.computed_at, tz)}</p>
-          </div>
-          <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            {score.factors.map((f) => (
-              <li key={f.key} className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-1">
-                <span><span className="font-medium">{f.label}</span> <span className="text-muted-foreground">· {f.detail}</span></span>
-                <span className="shrink-0 tabular-nums">{Math.round(f.value * f.weight * 10) / 10} / {f.weight}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        {/* Datos de contacto: primero en celular; columna fija a la derecha en escritorio. */}
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:order-2">
+          <section aria-labelledby="contacto" className={`${card} space-y-3`}>
+            <h2 id="contacto" className="font-semibold">Contacto y ubicación</h2>
+            <ul className="space-y-2.5 text-sm">
+              <Line icon={MapPin} label="Dirección">
+                {address ? (
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    <span className={`block ${inst.address ? "" : "text-muted-foreground/70"}`}>{inst.address ?? "Calle sin registrar"}</span>
+                    {place && <span className="block text-muted-foreground">{place}</span>}
+                  </a>
+                ) : null}
+              </Line>
+              <Line icon={Phone} label="Teléfono">{inst.phone && <a href={`tel:${digits(inst.phone)}`} className="hover:underline">{inst.phone}</a>}</Line>
+              <Line icon={Mail} label="Correo">{inst.email && <a href={`mailto:${inst.email}`} className="break-all hover:underline">{inst.email}</a>}</Line>
+              <Line icon={Globe} label="Sitio web">
+                {inst.website && <a href={href(inst.website)} target="_blank" rel="noopener noreferrer" className="break-all hover:underline">{inst.website.replace(/^https?:\/\//i, "")}</a>}
+              </Line>
+              <Line icon={UserRound} label="Contacto principal">
+                {primary && (
+                  <>
+                    <span className="block">{`${primary.first_name} ${primary.last_name}`.trim()}</span>
+                    {[people[0].job_title, primary.phone ?? primary.email].filter(Boolean).length > 0 && (
+                      <span className="block text-muted-foreground">{[people[0].job_title, primary.phone ?? primary.email].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </>
+                )}
+              </Line>
+              <Line icon={User} label="Responsable">{owner}</Line>
+            </ul>
+            {!inst.address && !inst.phone && canWrite && (
+              <a href="#editar" className="block text-sm text-primary underline">Agregar dirección y teléfono</a>
+            )}
+            <details className="group border-t border-border pt-3">
+              <summary className="cursor-pointer list-none text-sm font-medium text-primary [&::-webkit-details-marker]:hidden">
+                <span className="group-open:hidden">Ver más datos</span><span className="hidden group-open:inline">Ocultar datos</span>
+              </summary>
+              <div className="mt-3">
+                <Facts
+                  items={[
+                    ["Razón social", inst.legal_name],
+                    ["Id. fiscal", inst.tax_id],
+                    ["Alumnos / empleados", inst.estimated_size?.toLocaleString("es-MX")],
+                    ["Oficina", office],
+                    ["Alta", date(inst.created_at)],
+                    ["Última actualización", inst.updated_at !== inst.created_at ? date(inst.updated_at) : null],
+                  ]}
+                />
+              </div>
+            </details>
+          </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+          {score && (
+            <section aria-labelledby="puntaje" className={card}>
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                  <h2 id="puntaje" className="font-semibold">Puntaje</h2>
+                  <span className="flex items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium tabular-nums ${scoreTone(score.score)}`}>{score.score ?? "—"} / 100</span>
+                    <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+                  </span>
+                </summary>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {score.factors.map((f) => (
+                    <li key={f.key} className="border-b border-border/60 pb-1.5">
+                      <p className="flex items-baseline justify-between gap-3">
+                        <span className="font-medium">{f.label}</span>
+                        <span className="shrink-0 tabular-nums">{Math.round(f.value * f.weight * 10) / 10} / {f.weight}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">{f.detail}</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-muted-foreground">Calculado: {formatDateTime(score.computed_at, tz)}</p>
+              </details>
+            </section>
+          )}
+        </aside>
+
+        <div className="min-w-0 space-y-6">
+        <Card title={`Actividades (${pendingActs.length} ${pendingActs.length === 1 ? "pendiente" : "pendientes"})`}>
+          {pendingActs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin actividades pendientes.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pendingActs.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={Boolean(canWrite)} />)}
+            </ul>
+          )}
+          {canWrite && (
+            <details className="group">
+              <summary className={addSummary}><Plus className="size-4" aria-hidden />Registrar o programar actividad</summary>
+              <div className="mt-3 rounded-md border border-border p-3">
+                <NewActivityForm institutionId={id} contacts={people.filter((p) => p.contact).map((p) => ({ value: p.contact_id, label: `${p.contact!.first_name} ${p.contact!.last_name}`.trim() }))} />
+              </div>
+            </details>
+          )}
+          {pastActs.length > 0 && (
+            <details>
+              <summary className="cursor-pointer text-sm font-medium">Historial ({pastActs.length})</summary>
+              <ul className="mt-2 divide-y divide-border">
+                {pastActs.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={false} />)}
+              </ul>
+            </details>
+          )}
+        </Card>
+
+        <Card
+          title={`Oportunidades (${oppRows.length})`}
+          aside={canWrite && <Link href={`/oportunidades/nueva?institucion=${id}`} className="text-sm underline">Nueva oportunidad</Link>}
+        >
+          {oppRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin oportunidades todavía.</p>
+          ) : (
+            <ul className="divide-y divide-border text-sm">
+              {oppRows.map((o) => (
+                <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span>
+                    <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
+                    <span className="text-muted-foreground"> · {oppProduct.get(o.pipeline_id)} · {oppStage.get(o.stage_id)}{o.status !== "open" ? ` (${opportunityStatuses[o.status as keyof typeof opportunityStatuses]})` : ""}</span>
+                  </span>
+                  <span>{formatMoney(o.amount, o.currency_code)} · {o.probability}%{o.expected_close_date ? ` · ${formatDay(o.expected_close_date)}` : ""}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {oppRows.length > 0 && notOffered.length > 0 && (
+            <div className="rounded-md bg-muted/60 p-3 text-sm">
+              <p className="font-medium">Proveedores que aún no le has ofrecido</p>
+              <ul className="mt-1 flex flex-wrap gap-2">
+                {notOffered.map((p) => (
+                  <li key={p.default_pipeline_id}>
+                    {canWrite ? (
+                      <Link href={`/oportunidades/nueva?institucion=${id}&producto=${p.default_pipeline_id}`} className="rounded-full border border-border bg-background px-2.5 py-0.5 hover:bg-muted">{p.name}</Link>
+                    ) : (
+                      <span className="rounded-full border border-border px-2.5 py-0.5">{p.name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+
         <Card title={`Contactos (${people.length})`}>
           {people.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin contactos todavía.</p>
@@ -240,9 +379,9 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
             </ul>
           )}
           {canWrite && (
-            <details className="rounded-md border border-border p-3">
-              <summary className="cursor-pointer text-sm font-medium">Agregar contacto</summary>
-              <ActionForm action={addContact.bind(null, id)} submitLabel="Agregar contacto" className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-end">
+            <details className="group">
+              <summary className={addSummary}><Plus className="size-4" aria-hidden />Agregar contacto</summary>
+              <ActionForm action={addContact.bind(null, id)} submitLabel="Agregar contacto" className="mt-3 grid rounded-md border border-border p-3 gap-3 sm:grid-cols-2 sm:items-end">
                 <Field label="Nombre" name="first_name" required />
                 <Field label="Apellidos" name="last_name" />
                 <Field label="Correo" name="email" type="email" />
@@ -257,168 +396,91 @@ export default async function InstitutionPage({ params, searchParams }: PageProp
             </details>
           )}
         </Card>
-
-        <Card title="Datos y ubicación">
-          <Facts
-            items={[
-              ["Razón social", inst.legal_name],
-              ["Dirección", inst.address],
-              ["Ciudad", inst.city],
-              ["Estado / región", inst.region],
-              ["País", inst.country_code],
-              ["Teléfono", inst.phone],
-              ["Correo general", inst.email],
-              ["Id. fiscal", inst.tax_id],
-              ["Alumnos / empleados", inst.estimated_size?.toLocaleString("es-MX")],
-              ["Oficina", office],
-              ["Alta", date(inst.created_at)],
-              ["Última actualización", inst.updated_at !== inst.created_at ? date(inst.updated_at) : null],
-            ]}
-          />
-        </Card>
-      </div>
-
-      <Card
-        title={`Oportunidades (${oppRows.length})`}
-        aside={canWrite && <Link href={`/oportunidades/nueva?institucion=${id}`} className="text-sm underline">Nueva oportunidad</Link>}
-      >
-        {oppRows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin oportunidades todavía.</p>
-        ) : (
-          <ul className="divide-y divide-border text-sm">
-            {oppRows.map((o) => (
-              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span>
-                  <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
-                  <span className="text-muted-foreground"> · {oppProduct.get(o.pipeline_id)} · {oppStage.get(o.stage_id)}{o.status !== "open" ? ` (${opportunityStatuses[o.status as keyof typeof opportunityStatuses]})` : ""}</span>
-                </span>
-                <span>{formatMoney(o.amount, o.currency_code)} · {o.probability}%{o.expected_close_date ? ` · ${formatDay(o.expected_close_date)}` : ""}</span>
-              </li>
-            ))}
-          </ul>
+        {inst.notes && (
+          <Card title="Notas">
+            <p className="whitespace-pre-line text-sm">{inst.notes}</p>
+          </Card>
         )}
-        {oppRows.length > 0 && notOffered.length > 0 && (
-          <div className="rounded-md bg-muted/60 p-3 text-sm">
-            <p className="font-medium">Proveedores que aún no le has ofrecido</p>
-            <ul className="mt-1 flex flex-wrap gap-2">
-              {notOffered.map((p) => (
-                <li key={p.default_pipeline_id}>
-                  {canWrite ? (
-                    <Link href={`/oportunidades/nueva?institucion=${id}&producto=${p.default_pipeline_id}`} className="rounded-full border border-border bg-background px-2.5 py-0.5 hover:bg-muted">{p.name}</Link>
-                  ) : (
-                    <span className="rounded-full border border-border px-2.5 py-0.5">{p.name}</span>
-                  )}
+
+        <Card title="Correos y WhatsApp">
+          {(mails ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin correos ni mensajes registrados. Los correos llegan al conectar Gmail en Integraciones; los WhatsApp, al conectar el número de la empresa.</p>
+          ) : (
+            <ul className="divide-y divide-border text-sm">
+              {(mails ?? []).map((m) => (
+                <li key={m.id} className="space-y-0.5 py-2 first:pt-0">
+                  <p className="font-medium">
+                    {m.channel === "whatsapp"
+                      ? m.direction === "outbound" ? `WhatsApp enviado a ${m.to_phone} · ${waStatus[m.status ?? ""] ?? ""}` : "WhatsApp recibido"
+                      : `${m.direction === "outbound" ? "Enviado" : "Recibido"}: ${m.subject || "(sin asunto)"}`}
+                  </p>
+                  <p className="text-muted-foreground">{formatDateTime(m.sent_at, tz)} · {m.direction === "outbound" && m.channel === "whatsapp" ? "Desde el CRM" : m.from_email ?? m.from_phone}</p>
+                  {m.error && <p className="text-red-700">{m.error}</p>}
+                  {m.snippet && <p className="line-clamp-2 text-muted-foreground">{m.snippet}</p>}
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-      </Card>
-
-      <Card title={`Actividades (${pendingActs.length} pendientes)`}>
-        {pendingActs.length > 0 && (
-          <ul className="divide-y divide-border">
-            {pendingActs.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={Boolean(canWrite)} />)}
-          </ul>
-        )}
-        {canWrite && (
-          <details className="rounded-md border border-border p-3" open={activities.length === 0}>
-            <summary className="cursor-pointer text-sm font-medium">Registrar o programar actividad</summary>
-            <div className="mt-3">
-              <NewActivityForm institutionId={id} contacts={people.filter((p) => p.contact).map((p) => ({ value: p.contact_id, label: `${p.contact!.first_name} ${p.contact!.last_name}`.trim() }))} />
-            </div>
-          </details>
-        )}
-        {pastActs.length > 0 && (
-          <details>
-            <summary className="cursor-pointer text-sm font-medium">Historial ({pastActs.length})</summary>
-            <ul className="mt-2 divide-y divide-border">
-              {pastActs.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={personName} canAct={false} />)}
-            </ul>
-          </details>
-        )}
-      </Card>
-
-      {inst.notes && (
-        <Card title="Notas">
-          <p className="whitespace-pre-line text-sm">{inst.notes}</p>
+          )}
+          {canSendWa && people.some((p) => p.contact?.phone) && (
+            <details className="group">
+              <summary className={addSummary}><MessageCircle className="size-4" aria-hidden />Enviar WhatsApp</summary>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Mensaje libre solo si el contacto te escribió en las últimas 24 h. Fuera de esa ventana usa una plantilla aprobada, y solo si el contacto aceptó recibir WhatsApp.
+              </p>
+              <ActionForm action={sendWhatsapp.bind(null, id)} submitLabel="Enviar" className="mt-3 grid gap-3">
+                <SelectField label="Contacto" name="contact_id" required
+                  options={people.filter((p) => p.contact?.phone && p.contact.consent_status !== "revoked")
+                    .map((p) => ({ value: p.contact!.id, label: `${p.contact!.first_name} ${p.contact!.last_name} · ${p.contact!.phone}`.trim() }))} />
+                <SelectField label="Plantilla" name="template_id"
+                  options={[{ value: "", label: "Mensaje libre (ventana de 24 h)" }, ...(waTemplates ?? []).map((t) => ({ value: t.id, label: `${t.name} · ${t.body_preview.slice(0, 60)}` }))]} />
+                <TextareaField label="Mensaje libre" name="text" maxLength={4096} placeholder="Solo si no elegiste plantilla" />
+              </ActionForm>
+            </details>
+          )}
         </Card>
-      )}
 
-      <Card title="Correos y WhatsApp">
-        {(mails ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin correos ni mensajes registrados. Los correos llegan al conectar Gmail en Integraciones; los WhatsApp, al conectar el número de la empresa.</p>
-        ) : (
-          <ul className="divide-y divide-border text-sm">
-            {(mails ?? []).map((m) => (
-              <li key={m.id} className="space-y-0.5 py-2 first:pt-0">
-                <p className="font-medium">
-                  {m.channel === "whatsapp"
-                    ? m.direction === "outbound" ? `WhatsApp enviado a ${m.to_phone} · ${waStatus[m.status ?? ""] ?? ""}` : "WhatsApp recibido"
-                    : `${m.direction === "outbound" ? "Enviado" : "Recibido"}: ${m.subject || "(sin asunto)"}`}
-                </p>
-                <p className="text-muted-foreground">{formatDateTime(m.sent_at, tz)} · {m.direction === "outbound" && m.channel === "whatsapp" ? "Desde el CRM" : m.from_email ?? m.from_phone}</p>
-                {m.error && <p className="text-red-700">{m.error}</p>}
-                {m.snippet && <p className="line-clamp-2 text-muted-foreground">{m.snippet}</p>}
-              </li>
-            ))}
-          </ul>
-        )}
-        {canSendWa && people.some((p) => p.contact?.phone) && (
-          <details className="rounded-md border border-border p-3">
-            <summary className="cursor-pointer text-sm font-medium">Enviar WhatsApp</summary>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Mensaje libre solo si el contacto te escribió en las últimas 24 h. Fuera de esa ventana usa una plantilla aprobada, y solo si el contacto aceptó recibir WhatsApp.
-            </p>
-            <ActionForm action={sendWhatsapp.bind(null, id)} submitLabel="Enviar" className="mt-3 grid gap-3">
-              <SelectField label="Contacto" name="contact_id" required
-                options={people.filter((p) => p.contact?.phone && p.contact.consent_status !== "revoked")
-                  .map((p) => ({ value: p.contact!.id, label: `${p.contact!.first_name} ${p.contact!.last_name} · ${p.contact!.phone}`.trim() }))} />
-              <SelectField label="Plantilla" name="template_id"
-                options={[{ value: "", label: "Mensaje libre (ventana de 24 h)" }, ...(waTemplates ?? []).map((t) => ({ value: t.id, label: `${t.name} · ${t.body_preview.slice(0, 60)}` }))]} />
-              <TextareaField label="Mensaje libre" name="text" maxLength={4096} placeholder="Solo si no elegiste plantilla" />
-            </ActionForm>
-          </details>
-        )}
-      </Card>
+        <Card title="Documentos">
+          <DocumentsPanel institutionId={id} canWrite={Boolean(canWrite)} />
+        </Card>
 
-      <Card title="Documentos">
-        <DocumentsPanel institutionId={id} canWrite={Boolean(canWrite)} />
-      </Card>
+        <Card title="Sucursales y grupo">
+          {(branches.data ?? []).length === 0 && (members.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin sucursales ni instituciones del grupo.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {(branches.data ?? []).map((b) => (
+                <li key={b.id}>{b.name}{b.city ? `, ${b.city}` : ""}{b.address ? ` · ${b.address}` : ""}</li>
+              ))}
+              {(members.data ?? []).map((m) => (
+                <li key={m.id}>
+                  <Link href={`/instituciones/${m.id}`} className="underline">{m.name}</Link>{m.city ? `, ${m.city}` : ""} (miembro del grupo)
+                </li>
+              ))}
+            </ul>
+          )}
+          {canWrite && (
+            <details className="group">
+              <summary className={addSummary}><Plus className="size-4" aria-hidden />Agregar sucursal</summary>
+              <ActionForm action={addBranch.bind(null, id)} submitLabel="Agregar sucursal" className="mt-3 grid gap-3 rounded-md border border-border p-3 sm:grid-cols-4 sm:items-end">
+                <Field label="Nombre" name="name" required />
+                <Field label="Ciudad" name="city" />
+                <Field label="Dirección" name="address" />
+              </ActionForm>
+            </details>
+          )}
+        </Card>
 
-      <Card title="Sucursales y grupo">
-        {(branches.data ?? []).length === 0 && (members.data ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin sucursales ni instituciones del grupo.</p>
-        ) : (
-          <ul className="space-y-1 text-sm">
-            {(branches.data ?? []).map((b) => (
-              <li key={b.id}>{b.name}{b.city ? `, ${b.city}` : ""}{b.address ? ` · ${b.address}` : ""}</li>
-            ))}
-            {(members.data ?? []).map((m) => (
-              <li key={m.id}>
-                <Link href={`/instituciones/${m.id}`} className="underline">{m.name}</Link>{m.city ? `, ${m.city}` : ""} (miembro del grupo)
-              </li>
-            ))}
-          </ul>
-        )}
         {canWrite && (
-          <ActionForm action={addBranch.bind(null, id)} submitLabel="Agregar sucursal" className="grid gap-3 sm:grid-cols-4 sm:items-end">
-            <Field label="Nombre" name="name" required />
-            <Field label="Ciudad" name="city" />
-            <Field label="Dirección" name="address" />
-          </ActionForm>
+          <section id="editar" className="scroll-mt-6">
+            <Card title="Editar información">
+              <ActionForm action={updateInstitution.bind(null, id)} submitLabel="Guardar cambios">
+                <InstitutionFields values={inst} {...options} parents={options.parents.filter((o) => o.value !== id)} />
+              </ActionForm>
+            </Card>
+          </section>
         )}
-      </Card>
-
-      {canWrite && (
-        <section id="editar" className="scroll-mt-6">
-          <Card title="Editar información">
-            <ActionForm action={updateInstitution.bind(null, id)} submitLabel="Guardar cambios">
-              <InstitutionFields values={inst} {...options} parents={options.parents.filter((o) => o.value !== id)} />
-            </ActionForm>
-          </Card>
-        </section>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
