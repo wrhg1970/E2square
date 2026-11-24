@@ -1,7 +1,7 @@
 -- Pruebas de dashboard, conversión de moneda, metas y exportación auditada (Fase 5).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(32);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 insert into public.invitations (organization_id, email, role_id)
@@ -125,6 +125,29 @@ select is((select count(*)::int from public.goals where name like 'Venta del mes
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
 select throws_ok($$ select public.split_goal((select id from public.goals where name = 'Colegios Empresa B'), ids) from reps $$,
   'EB001', 'No tienes permiso para administrar metas.', 'un vendedor no reparte metas');
+
+-- Equipos: la meta de equipo suma lo de sus miembros.
+reset role;
+create temp table rep1 as select id from public.profiles where email = 'rep1@test.dev';
+grant select on rep1 to authenticated;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
+insert into public.teams (organization_id, name, leader_id) values (public.current_org_id(), 'Equipo Norte', (select id from rep1));
+insert into public.team_members (organization_id, team_id, profile_id) select public.current_org_id(), t.id, r.id from public.teams t, rep1 r;
+insert into public.goals (organization_id, name, metric, period_start, period_end, target, team_id, created_by)
+select public.current_org_id(), 'Unidades Norte', 'units', current_date - 30, current_date, 50, id, public.current_profile_id() from public.teams;
+select is((select actual from public.goals_progress() where name = 'Unidades Norte'), 10::numeric, 'la meta de equipo suma solo a sus miembros');
+select throws_ok($$ insert into public.goals (organization_id, name, metric, period_start, period_end, target, team_id, owner_id, created_by)
+  select public.current_org_id(), 'Mixta', 'units', current_date, current_date, 1, t.id, r.id, public.current_profile_id() from public.teams t, rep1 r $$,
+  '23514', null, 'una meta es de equipo o de vendedor, no de ambos');
+insert into public.teams (organization_id, name) values (public.current_org_id(), 'Equipo Sur');
+select throws_ok($$ insert into public.team_members (organization_id, team_id, profile_id)
+  select public.current_org_id(), t.id, r.id from public.teams t, rep1 r where t.name = 'Equipo Sur' $$,
+  '23505', null, 'cada persona está en un solo equipo');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select is((select count(*)::int from public.teams), 2, 'toda la organización ve los equipos');
+select throws_ok($$ insert into public.teams (organization_id, name) values (public.current_org_id(), 'Mío') $$,
+  '42501', null, 'un vendedor no crea equipos');
 
 select * from finish();
 rollback;

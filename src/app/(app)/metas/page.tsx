@@ -11,7 +11,7 @@ import { progressPct } from "@/modules/goals/labels";
 
 export default async function GoalsPage() {
   const supabase = await createClient();
-  const [goals, canManage, profiles, offices, products, companies, units, { data: meId }, { data: links }] = await Promise.all([
+  const [goals, canManage, profiles, offices, products, companies, units, { data: meId }, { data: links }, teams, teamMembers] = await Promise.all([
     supabase.rpc("goals_progress"),
     supabase.rpc("has_permission", { permission: "goals.manage" }),
     supabase.from("profiles").select("id, full_name, email").eq("status", "active").order("full_name"),
@@ -21,6 +21,8 @@ export default async function GoalsPage() {
     supabase.from("business_units").select("id, name").order("name"),
     supabase.rpc("current_profile_id"),
     supabase.from("goals").select("id, parent_id").not("parent_id", "is", null),
+    supabase.from("teams").select("id, name").order("name"),
+    supabase.from("team_members").select("team_id, profile_id"),
   ]);
   const { data: me } = await supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle();
   const today = dayIn(new Date(), me?.timezone ?? "America/Mexico_City");
@@ -28,7 +30,7 @@ export default async function GoalsPage() {
   const rows = (goals.data ?? []) as GoalProgress[];
   const names = new Map<string, string>([
     ...(profiles.data ?? []).map((p) => [p.id, p.full_name ?? p.email] as [string, string]),
-    ...[...(offices.data ?? []), ...(products.data ?? []), ...companyList, ...(units.data ?? [])].map((x) => [x.id, x.name] as [string, string]),
+    ...[...(offices.data ?? []), ...(products.data ?? []), ...companyList, ...(units.data ?? []), ...(teams.data ?? [])].map((x) => [x.id, x.name] as [string, string]),
   ]);
   const parentOf = new Map((links ?? []).map((l) => [l.id, l.parent_id as string]));
   const goalName = new Map(rows.map((g) => [g.id, g.name]));
@@ -68,7 +70,7 @@ export default async function GoalsPage() {
               <span>
                 {goalMetrics[g.metric]} · {formatDay(g.period_start)} a {formatDay(g.period_end)} · Vendedor: {name(g.owner_id)} · Oficina:{" "}
                 {name(g.office_id)} · Producto: {name(g.product_id)}
-                {g.company_id && ` · Empresa: ${name(g.company_id)}`}{g.business_unit_id && ` · Unidad: ${name(g.business_unit_id)}`}
+                {g.team_id && ` · Equipo: ${name(g.team_id)}`}{g.company_id && ` · Empresa: ${name(g.company_id)}`}{g.business_unit_id && ` · Unidad: ${name(g.business_unit_id)}`}
                 {parentOf.has(g.id) && ` · Reparto de: ${goalName.get(parentOf.get(g.id)!) ?? "meta general"}`}
                 {splitCount(g.id) > 0 && ` · Repartida entre ${splitCount(g.id)} vendedores`}
               </span>
@@ -99,7 +101,8 @@ export default async function GoalsPage() {
                     <legend className="sr-only">Vendedores</legend>
                     {(profiles.data ?? []).map((p) => (
                       <div key={p.id} className="flex items-center gap-2">
-                        <input type="checkbox" name="owner" value={p.id} id={`split-${g.id}-${p.id}`} />
+                        <input type="checkbox" name="owner" value={p.id} id={`split-${g.id}-${p.id}`}
+                          defaultChecked={Boolean(g.team_id) && (teamMembers.data ?? []).some((m) => m.team_id === g.team_id && m.profile_id === p.id)} />
                         <label htmlFor={`split-${g.id}-${p.id}`} className="flex-1 truncate">{p.full_name || p.email}</label>
                         <input type="number" name={`target_${p.id}`} min="0" step="any" aria-label={`Objetivo de ${p.full_name || p.email}`}
                           className="w-28 rounded-md border border-border bg-background px-2 py-1 text-sm" />
@@ -125,6 +128,7 @@ export default async function GoalsPage() {
             <Field label="Desde (o cualquier día del periodo)" name="period_start" type="date" required />
             <Field label="Hasta (solo con fechas a mano)" name="period_end" type="date" />
             <SelectField label="Vendedor" name="owner_id" options={opt(profiles.data)} />
+            <SelectField label="Equipo (en lugar de vendedor)" name="team_id" options={[{ value: "", label: "Ninguno" }, ...(teams.data ?? []).map((t) => ({ value: t.id, label: t.name }))]} />
             <SelectField label="Oficina" name="office_id" options={opt(offices.data)} />
             <SelectField label="Proveedor" name="product_id" options={opt(products.data)} />
             <SelectField label="Empresa" name="company_id" options={opt(companyList)} />

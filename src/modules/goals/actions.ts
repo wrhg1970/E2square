@@ -30,7 +30,7 @@ export async function repeatGoal(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
   const [{ data: g }, { data: me }] = await Promise.all([
-    supabase.from("goals").select("organization_id, name, metric, period_start, period_end, target, currency_code, owner_id, office_id, product_id, company_id, business_unit_id").eq("id", id).maybeSingle(),
+    supabase.from("goals").select("organization_id, name, metric, period_start, period_end, target, currency_code, owner_id, office_id, product_id, company_id, business_unit_id, team_id").eq("id", id).maybeSingle(),
     supabase.rpc("current_profile_id"),
   ]);
   if (!g) return;

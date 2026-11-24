@@ -4,7 +4,7 @@ import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { scoreFactors } from "@/modules/institutions/scoring";
-import { addExchangeRate, saveAutomation, updateScoreWeights, createBusinessUnit, createCompany, createInvitation, createOffice, updateOrgSettings } from "@/modules/admin/actions";
+import { addExchangeRate, saveAutomation, updateScoreWeights, createBusinessUnit, createCompany, createInvitation, createOffice, createTeam, removeTeamMember, setTeamMember, updateOrgSettings } from "@/modules/admin/actions";
 import { automationRules } from "@/modules/admin/schemas";
 import { CURRENCIES } from "@/modules/catalog/labels";
 import { formatDateTime, formatDay } from "@/modules/activities/time";
@@ -56,7 +56,7 @@ const currencyOptions = CURRENCIES.map((c) => ({ value: c, label: c }));
 
 export default async function AdminPage() {
   const supabase = await createClient();
-  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org, rates, automations] = await Promise.all([
+  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org, rates, automations, teams, teamMembers] = await Promise.all([
     supabase.from("companies").select("id, legal_name, tax_id, country_code, status").order("legal_name"),
     supabase.from("business_units").select("id, name, company_id").order("name"),
     supabase.from("offices").select("id, name, company_id, business_unit_id, country_code, timezone").order("name"),
@@ -69,6 +69,8 @@ export default async function AdminPage() {
     supabase.from("organizations").select("require_next_activity, reporting_currency, score_weights").maybeSingle(),
     supabase.from("exchange_rates").select("id, base_currency, quote_currency, rate, effective_at").order("effective_at", { ascending: false }).limit(50),
     supabase.from("automation_rules").select("key, enabled, days"),
+    supabase.from("teams").select("id, name, leader_id").order("name"),
+    supabase.from("team_members").select("team_id, profile_id"),
   ]);
   const [{ data: meId }, status] = canStructure.data
     ? await Promise.all([supabase.rpc("current_profile_id"), supabase.rpc("integration_status")])
@@ -86,6 +88,8 @@ export default async function AdminPage() {
   const companyName = new Map((companies.data ?? []).map((c) => [c.id, c.legal_name]));
   const unitName = new Map((units.data ?? []).map((u) => [u.id, u.name]));
   const roleName = new Map((roles.data ?? []).map((r) => [r.id, r.name]));
+  const personName = new Map((profiles.data ?? []).map((p) => [p.id, p.full_name || p.email]));
+  const personOptions = (profiles.data ?? []).filter((p) => p.status === "active").map((p) => ({ value: p.id, label: p.full_name || p.email }));
   const companyOptions = [{ value: "", label: "Elige una empresa" }, ...(companies.data ?? []).map((c) => ({ value: c.id, label: c.legal_name }))];
   const roleOptions = [{ value: "", label: "Elige un rol" }, ...(roles.data ?? []).map((r) => ({ value: r.id, label: r.name }))];
 
@@ -248,6 +252,44 @@ export default async function AdminPage() {
             <Field label="Zona horaria" name="timezone" defaultValue="America/Mexico_City" required />
           </ActionForm>
         )}
+      </Section>
+
+      <Section title="Equipos">
+        <Table
+          headers={["Equipo", "Líder", "Miembros"]}
+          rows={(teams.data ?? []).map((t) => [
+            t.name,
+            t.leader_id ? personName.get(t.leader_id) ?? "—" : "—",
+            <span key={t.id} className="flex flex-wrap gap-x-3 gap-y-1">
+              {(teamMembers.data ?? []).filter((m) => m.team_id === t.id).map((m) => (
+                <span key={m.profile_id}>
+                  {personName.get(m.profile_id) ?? "—"}
+                  {canStructure.data && (
+                    <form action={removeTeamMember.bind(null, m.profile_id)} className="inline">
+                      <button type="submit" className="ml-1 text-red-700 underline" aria-label={`Quitar a ${personName.get(m.profile_id)} del equipo`}>×</button>
+                    </form>
+                  )}
+                </span>
+              ))}
+            </span>,
+          ])}
+          empty="Todavía no hay equipos."
+        />
+        {canStructure.data && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ActionForm action={createTeam} submitLabel="Crear equipo" className="grid gap-3 sm:grid-cols-2 sm:items-end">
+              <Field label="Nombre del equipo" name="name" required />
+              <SelectField label="Líder (opcional)" name="leader_id" options={[{ value: "", label: "Sin líder" }, ...personOptions]} />
+            </ActionForm>
+            {(teams.data ?? []).length > 0 && (
+              <ActionForm action={setTeamMember} submitLabel="Asignar al equipo" className="grid gap-3 sm:grid-cols-2 sm:items-end">
+                <SelectField label="Equipo" name="team_id" options={(teams.data ?? []).map((t) => ({ value: t.id, label: t.name }))} />
+                <SelectField label="Persona" name="profile_id" options={personOptions} />
+              </ActionForm>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">Cada persona está en un solo equipo: asignarla a otro la cambia de equipo. Las metas de equipo suman lo de sus miembros.</p>
       </Section>
 
       <Section title="Usuarios">

@@ -64,3 +64,4 @@ UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; so
 - opportunities.imported_at marca ventas históricas cargadas desde Excel (`import_opportunity`): conservan su fecha real de cierre, no generan comisiones ni tareas automáticas. import_runs.entity = institutions | opportunities.
 - goals.parent_id liga las metas por vendedor con la meta general de la que salieron (`split_goal`: partes iguales o montos que sumen el objetivo; volver a repartir reemplaza; borrar la general borra el reparto).
 - campaign_steps(campaign_id, day_offset, activity_type, subject): secuencia de la campaña; al lanzar, una tarea por paso e institución con activities.campaign_id. Abrir una oportunidad con source_campaign_id cancela las tareas futuras de esa institución en la campaña.
+- teams(name, leader_id) y team_members(team_id, profile_id único): una persona en un solo equipo. goals.team_id (excluyente con owner_id) suma lo de los miembros actuales del equipo.

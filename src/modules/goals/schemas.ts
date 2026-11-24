@@ -31,7 +31,9 @@ export const goalSchema = z.preprocess(withPeriod, z
     product_id: optionalId,
     company_id: optionalId,
     business_unit_id: optionalId,
+    team_id: optionalId,
   })
+  .refine((g) => !(g.team_id && g.owner_id), { message: "Elige un vendedor o un equipo, no ambos", path: ["team_id"] })
   .refine((g) => g.period_end >= g.period_start, { message: "El fin debe ser posterior al inicio", path: ["period_end"] })
   .transform((g) => ({
     ...g,
