@@ -67,9 +67,9 @@ export function InstitutionFields({
       {withContact && (
         <Group title="Contacto principal (opcional)">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Nombre" name="contact_first_name" />
-            <Field label="Apellidos" name="contact_last_name" />
-            <Field label="Cargo" name="contact_job_title" placeholder="Directora general" />
+            <Field label="Nombre" name="contact_first_name" defaultValue={v(values.contact_first_name)} />
+            <Field label="Apellidos" name="contact_last_name" defaultValue={v(values.contact_last_name)} />
+            <Field label="Cargo" name="contact_job_title" defaultValue={v(values.contact_job_title)} placeholder="Directora general" />
             <Field label="Teléfono / WhatsApp" name="contact_phone" type="tel" />
             <Field label="Correo" name="contact_email" type="email" className="sm:col-span-2" />
           </div>
