@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expectedPct, nextPeriod, periodRange } from "./period";
+import { expectedPct, nextPeriod, periodRange, shiftMonths } from "./period";
 
 describe("periodRange", () => {
   it("mes, trimestre y año calendario", () => {
@@ -26,5 +26,14 @@ describe("expectedPct", () => {
     expect(expectedPct("2027-01-01", "2027-01-10", "2027-01-10")).toBe(100);
     expect(expectedPct("2027-01-01", "2027-01-10", "2026-12-31")).toBeNull();
     expect(expectedPct("2027-01-01", "2027-01-10", "2027-01-11")).toBeNull();
+  });
+});
+
+describe("shiftMonths", () => {
+  it("corre meses hacia atrás recortando al fin de mes", () => {
+    expect(shiftMonths("2026-11-24", 1)).toBe("2026-10-24");
+    expect(shiftMonths("2027-03-31", 1)).toBe("2027-02-28");
+    expect(shiftMonths("2027-02-15", 3)).toBe("2026-11-15");
+    expect(shiftMonths("2027-01-01", 12)).toBe("2026-01-01");
   });
 });

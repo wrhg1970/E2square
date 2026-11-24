@@ -31,3 +31,9 @@ export function expectedPct(start: string, end: string, today: string) {
   const day = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86_400_000;
   return Math.round(((day(today) - day(start) + 1) / (day(end) - day(start) + 1)) * 100);
 }
+
+// Mismo tramo "n" meses antes (recorta el día al fin de mes): 2026-11-01..24 → 2026-10-01..24.
+export function shiftMonths(day: string, n: number) {
+  const [y, m, d] = parts(day);
+  return iso(y, m - 1 - n, Math.min(d, Number(iso(y, m - n, 0).slice(8))));
+}
