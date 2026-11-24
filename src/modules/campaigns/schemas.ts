@@ -12,6 +12,7 @@ export const campaignTone: Record<string, "slate" | "teal" | "sky" | "red"> = { 
 const empty = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
 const opt = <T extends z.ZodType>(s: T) => z.preprocess(empty, s.nullable().optional());
 const money = z.coerce.number("Usa un número").min(0, "No puede ser negativo").max(1e12);
+const leadGoal = opt(z.coerce.number("Usa un número").int("Usa un número entero").min(1, "La meta debe ser al menos 1").max(1_000_000));
 const keys = <T extends Record<string, string>>(o: T) => Object.keys(o) as [keyof T & string, ...(keyof T & string)[]];
 
 export const campaignSchema = z.object({
@@ -22,10 +23,11 @@ export const campaignSchema = z.object({
   end_date: opt(z.iso.date("Fecha de fin no válida")),
   currency_code: currency,
   budget_amount: money.default(0),
+  lead_goal: leadGoal,
   notes: opt(z.string().trim().max(5000)),
 }).refine((d) => !d.end_date || d.end_date >= d.start_date, { message: "El fin no puede ser antes del inicio", path: ["end_date"] });
 
-export const costSchema = z.object({ actual_cost: money });
+export const costSchema = z.object({ actual_cost: money, lead_goal: leadGoal });
 
 export const segmentSchema = z.object({
   country: opt(z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "País con 2 letras (MX, CO…)")),
@@ -42,6 +44,6 @@ export const stepSchema = z.object({
 
 export type CampaignResults = {
   members: number; with_consent: number; responded: number; meetings: number; tasks_pending: number;
-  opportunities: number; open_amount: number; won_count: number; won_amount: number; won_margin: number;
+  opportunities: number; leads: number; lead_goal: number | null; open_amount: number; won_count: number; won_amount: number; won_margin: number;
   unconverted: number; cost: number; roi_pct: number | null;
 };

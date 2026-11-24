@@ -14,29 +14,34 @@ import { campaignStatuses, campaignTone, campaignTypes } from "@/modules/campaig
 import { CURRENCIES } from "@/modules/catalog/labels";
 import { toOptions } from "@/modules/institutions/labels";
 import { formatMoney } from "@/modules/opportunities/labels";
+import { progressPct } from "@/modules/goals/labels";
 
 export default async function CampaignsPage({ searchParams }: PageProps<"/campanas">) {
   const sp = await searchParams;
   const status = typeof sp.estatus === "string" && sp.estatus in campaignStatuses ? sp.estatus : "";
   const supabase = await createClient();
-  const [{ data: all, error }, { data: canManage }, { data: suppliers }, { data: members }] = await Promise.all([
-    supabase.from("campaigns").select("id, name, campaign_type, status, start_date, end_date, budget_amount, actual_cost, currency_code, product_id")
+  const [{ data: all, error }, { data: canManage }, { data: suppliers }, { data: members }, { data: opps }] = await Promise.all([
+    supabase.from("campaigns").select("id, name, campaign_type, status, start_date, end_date, budget_amount, actual_cost, currency_code, product_id, lead_goal")
       .order("start_date", { ascending: false }),
     supabase.rpc("has_permission", { permission: "campaigns.manage" }),
     supabase.from("products").select("id, name").is("supplier_id", null).eq("active", true).order("name"),
     supabase.from("campaign_members").select("campaign_id"),
+    supabase.from("opportunities").select("source_campaign_id, institution_id").not("source_campaign_id", "is", null),
   ]);
   const supplierName = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
   const count = (id: string) => (members ?? []).filter((m) => m.campaign_id === id).length;
+  // Lead: institución distinta con al menos una oportunidad marcada con la campaña (igual que campaign_results).
+  const leads = (id: string) => new Set((opps ?? []).filter((o) => o.source_campaign_id === id).map((o) => o.institution_id)).size;
   const campaigns = (all ?? []).filter((c) => !status || c.status === status);
   const by = (s: string) => (all ?? []).filter((c) => c.status === s).length;
 
   const newForm = canManage && (
     <ActionForm action={createCampaign} submitLabel="Crear campaña" className="space-y-5">
-      <FormBlock title="Qué campaña es">
+      <FormBlock title="Qué campaña es" cols={4}>
         <Field label="Nombre" name="name" placeholder="Regreso a clases 2027" required className="lg:col-span-1" />
         <SelectField label="Tipo" name="campaign_type" options={toOptions(campaignTypes)} />
         <SelectField label="Proveedor" name="product_id" options={[{ value: "", label: "Varios" }, ...(suppliers ?? []).map((s) => ({ value: s.id, label: s.name }))]} />
+        <Field label="Meta de leads" name="lead_goal" type="number" min={1} step={1} placeholder="Opcional" />
       </FormBlock>
       <FormBlock title="Fechas y presupuesto" cols={4}>
         <Field label="Inicio" name="start_date" type="date" required />
@@ -89,7 +94,7 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/campan
             <div className="table-card">
               <table className="w-full text-left text-sm">
                 <thead className="text-muted-foreground">
-                  <tr>{["Campaña", "Estatus", "Tipo", "Fechas", "Audiencia", "Presupuesto", "Costo real"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
+                  <tr>{["Campaña", "Estatus", "Tipo", "Fechas", "Audiencia", "Leads", "Presupuesto", "Costo real"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {campaigns.map((c) => (
@@ -103,6 +108,9 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/campan
                       <td className="py-2 pr-4">{campaignTypes[c.campaign_type as keyof typeof campaignTypes]}</td>
                       <td className="whitespace-nowrap py-2 pr-4">{formatDay(c.start_date)}{c.end_date ? ` – ${formatDay(c.end_date)}` : ""}</td>
                       <td className="py-2 pr-4 tabular-nums">{count(c.id)}</td>
+                      <td className="whitespace-nowrap py-2 pr-4 tabular-nums">
+                        {c.lead_goal ? <>{leads(c.id)} de {c.lead_goal} <span className="text-xs text-muted-foreground">· {progressPct(leads(c.id), c.lead_goal)}%</span></> : leads(c.id)}
+                      </td>
                       <td className="whitespace-nowrap py-2 pr-4 tabular-nums">{formatMoney(Number(c.budget_amount), c.currency_code)}</td>
                       <td className="whitespace-nowrap py-2 pr-4 tabular-nums">{formatMoney(Number(c.actual_cost), c.currency_code)}</td>
                     </tr>
