@@ -159,6 +159,14 @@ test("el calendario muestra la actividad de la semana", async ({ page }) => {
   await expect(page.getByRole("region", { name: /15 de ene/ }).getByText("Presentación a dirección").first()).toBeVisible();
 });
 
+test("el calendario cambia a vista de mes y de día", async ({ page }) => {
+  await page.goto("/calendario?vista=mes&fecha=2030-01-14");
+  await expect(page.getByRole("region", { name: /15 de ene/ }).getByText("Presentación a dirección").first()).toBeVisible();
+  await page.getByRole("link", { name: /^Ver el mar 15 de ene/ }).click();
+  await expect(page.getByRole("link", { name: "Día", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText("Presentación a dirección").first()).toBeVisible();
+});
+
 test("el recordatorio aparece en Mi día antes de la fecha", async ({ page }) => {
   const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(Date.now() + 86_400_000);
   await page.goto("/mi-dia");

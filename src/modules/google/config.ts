@@ -18,5 +18,7 @@ export const GOOGLE_SCOPES = [
   "openid",
   "email",
   "https://www.googleapis.com/auth/gmail.readonly",
+  // Para "Enviar desde mi Gmail" en Correos; quien conectó antes debe volver a conectar.
+  "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/calendar.events",
 ];
