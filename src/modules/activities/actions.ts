@@ -17,6 +17,7 @@ async function me() {
 
 function refreshFor(a: { institution_id?: string | null; opportunity_id?: string | null }) {
   revalidatePath("/mi-dia");
+  revalidatePath("/tareas");
   if (a.institution_id) revalidatePath(`/instituciones/${a.institution_id}`);
   if (a.opportunity_id) revalidatePath(`/oportunidades/${a.opportunity_id}`);
 }
@@ -24,15 +25,20 @@ function refreshFor(a: { institution_id?: string | null; opportunity_id?: string
 export async function createActivity(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = activitySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { due_local, done, reminder, ...rest } = parsed.data;
+  const { due_local, done, reminder, owner_id, ...rest } = parsed.data;
   if (!done && !due_local) return { error: "Indica la fecha y hora, o marca que ya se realizó." };
   const { supabase, profile } = await me();
   if (!profile) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+  // Asignar: el responsable debe ser un usuario activo de la misma organización (RLS ya limita profiles a la organización).
+  if (owner_id && owner_id !== profile.id) {
+    const { data: assignee } = await supabase.from("profiles").select("id").eq("id", owner_id).eq("status", "active").maybeSingle();
+    if (!assignee) return { error: "Ese responsable no existe o está inactivo." };
+  }
 
   const { error } = await supabase.from("activities").insert({
     ...rest,
     organization_id: profile.organization_id,
-    owner_id: profile.id,
+    owner_id: owner_id ?? profile.id,
     created_by: profile.id,
     timezone: profile.timezone,
     due_at: due_local ? zonedToUtc(due_local, profile.timezone).toISOString() : new Date().toISOString(),
@@ -43,6 +49,7 @@ export async function createActivity(_prev: ActionState, formData: FormData): Pr
   });
   if (error) return { error: dbErrorMessage(error) };
   refreshFor(rest);
+  if (owner_id && owner_id !== profile.id) return { success: "Tarea asignada. Le aparecerá en su Mi día." };
   return { success: done ? "Actividad registrada." : "Actividad programada." };
 }
 
