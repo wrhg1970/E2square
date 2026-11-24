@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ui/action-form";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
+import { activityTypes } from "@/modules/activities/labels";
 import { formatDay } from "@/modules/activities/time";
 import { DocumentsPanel } from "@/modules/documents/documents-panel";
-import { addMembers, closeCampaign, launchCampaign, removeMember, updateCost } from "@/modules/campaigns/actions";
+import { addMembers, addStep, closeCampaign, launchCampaign, removeMember, removeStep, updateCost } from "@/modules/campaigns/actions";
 import { campaignStatuses, campaignTypes, type CampaignResults } from "@/modules/campaigns/schemas";
 import { institutionStatuses, institutionTypes, toOptions } from "@/modules/institutions/labels";
 import { formatMoney } from "@/modules/opportunities/labels";
@@ -26,11 +27,12 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
   const supabase = await createClient();
   const { data: c } = await supabase.from("campaigns").select("*").eq("id", id).maybeSingle();
   if (!c) notFound();
-  const [{ data: results }, { data: canManage }, { data: members }, { data: owners }] = await Promise.all([
+  const [{ data: results }, { data: canManage }, { data: members }, { data: owners }, { data: steps }] = await Promise.all([
     supabase.rpc("campaign_results", { p_campaign: id }),
     supabase.rpc("has_permission", { permission: "campaigns.manage" }),
     supabase.from("campaign_members").select("id, institution_id, contact_id, consent_basis").eq("campaign_id", id).limit(500),
     supabase.from("profiles").select("id, full_name, email").eq("status", "active").order("full_name"),
+    supabase.from("campaign_steps").select("id, day_offset, activity_type, subject").eq("campaign_id", id).order("day_offset").order("created_at"),
   ]);
   const r = results as CampaignResults;
   const instIds = (members ?? []).map((m) => m.institution_id);
@@ -65,7 +67,7 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
         <Tile label="Tareas pendientes" value={String(r.tasks_pending)} hint="Seguimientos aún sin hacer" />
       </section>
       {c.launched_at && (
-        <p className="text-sm text-green-700">Lanzada el {new Date(c.launched_at).toLocaleDateString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "medium" })}: se asignó una tarea de seguimiento al responsable de cada institución.</p>
+        <p className="text-sm text-green-700">Lanzada el {new Date(c.launched_at).toLocaleDateString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "medium" })}: se asignaron al responsable de cada institución las tareas de la secuencia.</p>
       )}
       {r.unconverted > 0 && <p className="text-sm text-amber-700">{r.unconverted} oportunidades en otra moneda no tienen tipo de cambio y no se suman.</p>}
       <p className="text-xs text-muted-foreground">
@@ -91,6 +93,36 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
           )}
         </div>
       )}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Secuencia</h2>
+        <p className="text-xs text-muted-foreground">
+          Al lanzar, cada paso se vuelve una tarea para el responsable de cada institución, el día indicado desde el inicio. No envía mensajes.
+          Si la institución abre una oportunidad de esta campaña, se cancelan sus pasos pendientes. Sin pasos, se asigna un solo seguimiento el día de inicio.
+        </p>
+        {(steps ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin pasos: un solo seguimiento el día de inicio.</p>
+        ) : (
+          <ol className="space-y-1 text-sm">
+            {(steps ?? []).map((st) => (
+              <li key={st.id} className="flex items-center gap-3">
+                <span className="w-16 text-muted-foreground">Día {st.day_offset}</span>
+                <span>{activityTypes[st.activity_type as keyof typeof activityTypes]} · {st.subject}</span>
+                {canManage && c.status === "draft" && (
+                  <form action={removeStep.bind(null, id, st.id)}><button type="submit" className="text-red-700 underline" aria-label={`Quitar paso ${st.subject}`}>Quitar</button></form>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+        {canManage && c.status === "draft" && (steps ?? []).length < 10 && (
+          <ActionForm action={addStep.bind(null, id)} submitLabel="Agregar paso" className="grid gap-3 sm:grid-cols-4 sm:items-end">
+            <Field label="Día" name="day_offset" type="number" min={0} max={365} step={1} defaultValue="0" required />
+            <SelectField label="Tipo de paso" name="activity_type" options={Object.entries(activityTypes).map(([value, label]) => ({ value, label }))} />
+            <Field label="Qué hacer" name="subject" placeholder="Enviar folleto" required />
+          </ActionForm>
+        )}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Audiencia ({(members ?? []).length})</h2>
