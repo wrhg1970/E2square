@@ -7,19 +7,13 @@ import { activityTypes } from "@/modules/activities/labels";
 import { formatDay } from "@/modules/activities/time";
 import { DocumentsPanel } from "@/modules/documents/documents-panel";
 import { addMembers, addStep, closeCampaign, launchCampaign, removeMember, removeStep, updateCost } from "@/modules/campaigns/actions";
-import { campaignStatuses, campaignTypes, type CampaignResults } from "@/modules/campaigns/schemas";
+import { campaignStatuses, campaignTone, campaignTypes, type CampaignResults } from "@/modules/campaigns/schemas";
+import { buttonVariants } from "@/components/ui/button";
+import { Pill } from "@/components/ui/pill";
+import { FormBlock, Reveal } from "@/components/ui/reveal";
+import { StatTile as Tile } from "@/components/ui/stat-tile";
 import { institutionStatuses, institutionTypes, toOptions } from "@/modules/institutions/labels";
 import { formatMoney } from "@/modules/opportunities/labels";
-
-function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
-  );
-}
 
 export default async function CampaignPage({ params }: PageProps<"/campanas/[id]">) {
   const { id } = await params;
@@ -50,21 +44,23 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
     <div className="max-w-5xl space-y-6">
       <div className="on-band page-header">
         <Link href="/campanas" className="text-sm text-muted-foreground hover:underline">← Campañas</Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">{c.name}</h1>
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">{c.name}</h1>
+          <Pill tone={campaignTone[c.status]}>{campaignStatuses[c.status as keyof typeof campaignStatuses]}</Pill>
+        </div>
         <p className="text-sm text-muted-foreground">
-          {campaignTypes[c.campaign_type as keyof typeof campaignTypes]} · {campaignStatuses[c.status as keyof typeof campaignStatuses]} ·{" "}
-          {formatDay(c.start_date)}{c.end_date ? ` – ${formatDay(c.end_date)}` : ""} · Presupuesto {money(Number(c.budget_amount))}
+          {campaignTypes[c.campaign_type as keyof typeof campaignTypes]} · {formatDay(c.start_date)}{c.end_date ? ` – ${formatDay(c.end_date)}` : ""} · Presupuesto {money(Number(c.budget_amount))}
         </p>
       </div>
 
-      <section aria-label="Resultados" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Resultados" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Audiencia" value={String(r.members)} hint={`${r.with_consent} con consentimiento`} />
         <Tile label="Respondieron" value={String(r.responded)} hint={`${r.meetings} reuniones o visitas hechas`} />
         <Tile label="Oportunidades" value={String(r.opportunities)} hint={`Abierto ${money(r.open_amount)}`} />
-        <Tile label="Ganado" value={money(r.won_amount)} hint={`${r.won_count} ventas · margen ${money(r.won_margin)}`} />
+        <Tile label="Ganado" value={money(r.won_amount)} hint={`${r.won_count} ventas · margen ${money(r.won_margin)}`} tone={r.won_count ? "good" : "default"} />
         <Tile label="Costo real" value={money(r.cost)} />
         <Tile label="ROI" value={r.roi_pct === null ? "—" : `${r.roi_pct}%`} hint="(Margen ganado − costo) / costo" />
-        <Tile label="Tareas pendientes" value={String(r.tasks_pending)} hint="Seguimientos aún sin hacer" />
+        <Tile label="Tareas pendientes" value={String(r.tasks_pending)} hint="Seguimientos aún sin hacer" tone={r.tasks_pending ? "warn" : "default"} />
       </section>
       {c.launched_at && (
         <p className="text-sm text-green-700">Lanzada el {new Date(c.launched_at).toLocaleDateString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "medium" })}: se asignaron al responsable de cada institución las tareas de la secuencia.</p>
@@ -75,15 +71,15 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
       </p>
 
       {editable && (
-        <div className="flex flex-wrap items-start gap-6">
-          <ActionForm action={updateCost.bind(null, id)} submitLabel="Guardar costo" className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-4 rounded-xl border border-border bg-background p-4 shadow-sm">
+          <ActionForm action={updateCost.bind(null, id)} submitLabel="Guardar costo" submitVariant="outline" className="flex flex-wrap items-end gap-3">
             <Field label="Costo real" name="actual_cost" type="number" min={0} step="0.01" defaultValue={String(c.actual_cost)} />
           </ActionForm>
           {c.status === "draft" ? (
             <ActionForm action={launchCampaign.bind(null, id)} submitLabel="Lanzar campaña">{null}</ActionForm>
           ) : (
             <form action={closeCampaign.bind(null, id, "finished")}>
-              <button type="submit" className="h-9 rounded-md border border-border px-4 text-sm">Terminar campaña</button>
+              <button type="submit" className={buttonVariants({ variant: "outline" })}>Terminar campaña</button>
             </form>
           )}
           {c.status === "draft" && (
@@ -101,42 +97,57 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
           Si la institución abre una oportunidad de esta campaña, se cancelan sus pasos pendientes. Sin pasos, se asigna un solo seguimiento el día de inicio.
         </p>
         {(steps ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin pasos: un solo seguimiento el día de inicio.</p>
+          <p className="rounded-xl border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+            Sin pasos: al lanzar se asigna un solo seguimiento el día de inicio.{canManage && c.status === "draft" && " Agrega pasos si quieres una secuencia (por ejemplo: día 0 correo, día 3 llamada, día 10 visita)."}
+          </p>
         ) : (
-          <ol className="space-y-1 text-sm">
-            {(steps ?? []).map((st) => (
-              <li key={st.id} className="flex items-center gap-3">
-                <span className="w-16 text-muted-foreground">Día {st.day_offset}</span>
-                <span>{activityTypes[st.activity_type as keyof typeof activityTypes]} · {st.subject}</span>
-                {canManage && c.status === "draft" && (
-                  <form action={removeStep.bind(null, id, st.id)}><button type="submit" className="text-red-700 underline" aria-label={`Quitar paso ${st.subject}`}>Quitar</button></form>
-                )}
-              </li>
-            ))}
-          </ol>
+          <div className="table-card">
+            <table className="w-full text-left text-sm">
+              <thead className="text-muted-foreground"><tr><th className="w-24 py-2 pr-4 font-medium">Día</th><th className="py-2 pr-4 font-medium">Tipo</th><th className="py-2 pr-4 font-medium">Qué hacer</th><th /></tr></thead>
+              <tbody>
+                {(steps ?? []).map((st) => (
+                  <tr key={st.id} className="border-t border-border">
+                    <td className="py-2 pr-4 tabular-nums">Día {st.day_offset}</td>
+                    <td className="py-2 pr-4"><Pill tone="sky">{activityTypes[st.activity_type as keyof typeof activityTypes]}</Pill></td>
+                    <td className="py-2 pr-4">{st.subject}</td>
+                    <td className="py-2 text-right">
+                      {canManage && c.status === "draft" && (
+                        <form action={removeStep.bind(null, id, st.id)}><button type="submit" className="text-red-700 underline" aria-label={`Quitar paso ${st.subject}`}>Quitar</button></form>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {canManage && c.status === "draft" && (steps ?? []).length < 10 && (
-          <ActionForm action={addStep.bind(null, id)} submitLabel="Agregar paso" className="grid gap-3 sm:grid-cols-4 sm:items-end">
-            <Field label="Día" name="day_offset" type="number" min={0} max={365} step={1} defaultValue="0" required />
-            <SelectField label="Tipo de paso" name="activity_type" options={Object.entries(activityTypes).map(([value, label]) => ({ value, label }))} />
-            <Field label="Qué hacer" name="subject" placeholder="Enviar folleto" required />
-          </ActionForm>
+          <Reveal label="Agregar paso" variant="outline">
+            <ActionForm action={addStep.bind(null, id)} submitLabel="Agregar paso" className="space-y-4">
+              <FormBlock title="Paso de la secuencia">
+                <Field label="Día" name="day_offset" type="number" min={0} max={365} step={1} defaultValue="0" required />
+                <SelectField label="Tipo de paso" name="activity_type" options={Object.entries(activityTypes).map(([value, label]) => ({ value, label }))} />
+                <Field label="Qué hacer" name="subject" placeholder="Enviar folleto" required />
+              </FormBlock>
+            </ActionForm>
+          </Reveal>
         )}
       </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Audiencia ({(members ?? []).length})</h2>
         {editable && (
-          <details className="rounded-xl border border-border bg-background p-4 shadow-sm" open={c.status === "draft"}>
-            <summary className="cursor-pointer text-sm font-medium">Agregar instituciones por segmento</summary>
-            <p className="mt-2 text-xs text-muted-foreground">
+          <Reveal label="Agregar instituciones por segmento" variant={(members ?? []).length ? "outline" : "default"} open={c.status === "draft" && (members ?? []).length === 0}>
+            <p className="mb-4 text-xs text-muted-foreground">
               Entran las instituciones que puedes ver y cumplen el segmento. Quedan fuera las inactivas y las que solo tienen contactos que pidieron no ser contactados.
             </p>
-            <ActionForm action={addMembers.bind(null, id)} submitLabel="Agregar a la audiencia" className="mt-3 grid gap-3 sm:grid-cols-4 sm:items-end">
-              <Field label="País" name="country" placeholder="MX" maxLength={2} />
-              <SelectField label="Responsable" name="owner" options={[{ value: "", label: "Todos" }, ...(owners ?? []).map((o) => ({ value: o.id, label: o.full_name || o.email }))]} />
-              <SelectField label="Estatus" name="status" options={toOptions(institutionStatuses, "Todos")} />
-              <fieldset className="text-sm sm:col-span-4">
+            <ActionForm action={addMembers.bind(null, id)} submitLabel="Agregar a la audiencia" className="space-y-4">
+              <FormBlock title="Segmento">
+                <Field label="País" name="country" placeholder="MX" maxLength={2} />
+                <SelectField label="Responsable" name="owner" options={[{ value: "", label: "Todos" }, ...(owners ?? []).map((o) => ({ value: o.id, label: o.full_name || o.email }))]} />
+                <SelectField label="Estatus" name="status" options={toOptions(institutionStatuses, "Todos")} />
+              </FormBlock>
+              <fieldset className="text-sm">
                 <legend className="font-medium">Tipos (ninguno = todos)</legend>
                 <div className="mt-1 flex flex-wrap gap-3">
                   {Object.entries(institutionTypes).map(([k, label]) => (
@@ -145,10 +156,12 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
                 </div>
               </fieldset>
             </ActionForm>
-          </details>
+          </Reveal>
         )}
         {(members ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin instituciones todavía.</p>
+          <p className="rounded-xl border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+            Sin instituciones todavía.{editable && " Usa «Agregar instituciones por segmento» para armar la audiencia antes de lanzar."}
+          </p>
         ) : (
           <div className="table-card"><table className="w-full text-left text-sm">
             <thead className="text-muted-foreground">
@@ -162,7 +175,7 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
                     {inst.get(m.institution_id)?.city && <span className="text-muted-foreground"> · {inst.get(m.institution_id)?.city}</span>}
                   </td>
                   <td className="py-2 pr-4">{m.contact_id ? contact.get(m.contact_id) ?? "—" : "Sin contacto"}</td>
-                  <td className="py-2 pr-4">{m.consent_basis === "granted" ? "Registrado" : "Sin registrar"}</td>
+                  <td className="py-2 pr-4">{m.consent_basis === "granted" ? <Pill tone="teal">Registrado</Pill> : <Pill>Sin registrar</Pill>}</td>
                   <td className="py-2 text-right">
                     {canManage && c.status === "draft" && (
                       <form action={removeMember.bind(null, id, m.id)}><button type="submit" className="text-red-700 underline">Quitar</button></form>
