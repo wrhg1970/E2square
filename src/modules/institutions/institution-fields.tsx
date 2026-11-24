@@ -8,7 +8,7 @@ type Values = Partial<Record<string, string | number | null>>;
 const v = (x: string | number | null | undefined) => (x == null ? "" : String(x));
 const SOURCES = ["Feria educativa", "Referido", "Sitio web", "Llamada en frío", "Redes sociales", "Evento", "Base existente"];
 
-function Group({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
+export function Group({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
   return (
     <fieldset className={`space-y-3 rounded-xl border border-border bg-background shadow-sm p-4 ${className ?? ""}`}>
       <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</legend>

@@ -9,3 +9,7 @@ export function totalsByCurrency<T>(rows: T[], currency: (r: T) => string, value
   for (const r of rows) totals.set(currency(r), (totals.get(currency(r)) ?? 0) + value(r));
   return [...totals.entries()].map(([c, v]) => formatMoney(v, c)).join(" + ") || formatMoney(0, "USD");
 }
+
+// Iniciales del agente para el círculo de la lista: "Laura Méndez" → "LM"; sin nombre, del correo.
+export const initials = (name: string | null | undefined, email?: string | null) =>
+  ((name?.trim() || email?.split("@")[0] || "?").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();

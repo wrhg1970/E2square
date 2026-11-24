@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, totalsByCurrency } from "./labels";
+import { formatMoney, initials, totalsByCurrency } from "./labels";
 import { itemSchema } from "./schemas";
 
 describe("dinero", () => {
@@ -18,5 +18,13 @@ describe("dinero", () => {
       quantity: 30, unit_price: 150, discount_pct: 0, unit_cost: 0,
     });
     expect(itemSchema.safeParse({ product_id: uuid, quantity: "0", unit_price: "1" }).success).toBe(false);
+  });
+});
+
+describe("iniciales", () => {
+  it("toma nombre y apellido, o el correo si no hay nombre", () => {
+    expect(initials("Laura Méndez Ruiz")).toBe("LM");
+    expect(initials(null, "ana.rios@e2.com")).toBe("AR");
+    expect(initials("  ", null)).toBe("?");
   });
 });

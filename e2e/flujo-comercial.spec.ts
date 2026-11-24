@@ -465,6 +465,25 @@ test("importa ventas históricas con vista previa y sin duplicar", async ({ page
   await expect(status).toContainText("0 listas · 1 posibles duplicados");
 });
 
+test("oportunidades muestra el embudo, la lista por etapa y el tablero", async ({ page }) => {
+  await page.goto("/oportunidades");
+  await expect(page.getByRole("list", { name: "Resumen del embudo" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Lista" })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("link", { name: "Tablero" }).click();
+  await expect(page).toHaveURL(/vista=tablero/);
+  await page.getByRole("searchbox", { name: "Buscar colegio u oportunidad" }).fill("no-existe-zzz");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/Ninguna oportunidad coincide|Todavía no hay oportunidades/)).toBeVisible();
+
+  // El buscador de institución solo acepta una de la lista (el servidor valida el id).
+  await page.goto("/oportunidades/nueva");
+  await page.getByLabel("Institución").fill("Colegio que no existe zzz");
+  await page.getByLabel("Proveedor").selectOption({ label: "IHS" });
+  await page.getByLabel("Nombre", { exact: true }).fill("Prueba sin institución");
+  await page.getByRole("button", { name: "Crear oportunidad" }).click();
+  await expect(page.getByRole("status")).toContainText("Elige una institución");
+});
+
 test("reparte una meta general entre vendedores", async ({ page }) => {
   // Dos vendedores nuevos: invitación en la app + usuario en Auth local (el perfil se crea al aceptar).
   const { url, key } = localSupabase();
