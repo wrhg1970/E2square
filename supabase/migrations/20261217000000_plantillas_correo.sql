@@ -1,3 +1,4 @@
+-- Versión 20261217: antes era 20261216000000 y chocaba con plantillas_campana; idempotente por si se reintenta.
 -- Correos: plantillas compartidas por la organización, con variables {{...}} que se llenan con la institución y su contacto.
 -- Reglas propuestas (pendientes de confirmar por Will):
 --   * Todos los usuarios ven y usan las plantillas de su organización y pueden crear las suyas.
@@ -17,6 +18,7 @@ begin
   return new;
 end $$;
 revoke execute on function public.grant_email_template_permissions() from public, anon, authenticated;
+drop trigger if exists roles_grant_email_templates on public.roles;
 create trigger roles_grant_email_templates after insert on public.roles
 for each row execute function public.grant_email_template_permissions();
 
@@ -25,7 +27,7 @@ select r.organization_id, r.id, 'email_templates.manage' from public.roles r
 where r.key in ('admin', 'general_director', 'sales_director', 'marketing')
 on conflict (role_id, permission_key) do nothing;
 
-create table public.email_templates (
+create table if not exists public.email_templates (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id),
   category text not null check (category in ('first_contact', 'proposal', 'meeting', 'follow_up', 'customer')),
@@ -37,11 +39,16 @@ create table public.email_templates (
   updated_at timestamptz not null default now(),
   foreign key (created_by, organization_id) references public.profiles(id, organization_id) on delete set null (created_by)
 );
-create index email_templates_org on public.email_templates (organization_id, category, title);
+create index if not exists email_templates_org on public.email_templates (organization_id, category, title);
+drop trigger if exists email_templates_set_updated_at on public.email_templates;
 create trigger email_templates_set_updated_at before update on public.email_templates
 for each row execute function public.set_updated_at();
 
 alter table public.email_templates enable row level security;
+drop policy if exists email_templates_select on public.email_templates;
+drop policy if exists email_templates_insert on public.email_templates;
+drop policy if exists email_templates_update on public.email_templates;
+drop policy if exists email_templates_delete on public.email_templates;
 create policy email_templates_select on public.email_templates for select to authenticated
   using (organization_id = public.current_org_id());
 create policy email_templates_insert on public.email_templates for insert to authenticated
@@ -63,6 +70,7 @@ begin
   new.organization_id := old.organization_id;
   return new;
 end $$;
+drop trigger if exists email_templates_keep_owner on public.email_templates;
 create trigger email_templates_keep_owner before update on public.email_templates
 for each row execute function public.email_templates_keep_owner();
 
@@ -103,7 +111,9 @@ begin
   return new;
 end $$;
 revoke execute on function public.organizations_seed_email_templates() from public, anon, authenticated;
+drop trigger if exists organizations_seed_email_templates on public.organizations;
 create trigger organizations_seed_email_templates after insert on public.organizations
 for each row execute function public.organizations_seed_email_templates();
 
-select public.seed_email_templates(id) from public.organizations;
+select public.seed_email_templates(o.id) from public.organizations o
+where not exists (select 1 from public.email_templates t where t.organization_id = o.id);
