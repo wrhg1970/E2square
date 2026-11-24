@@ -496,6 +496,19 @@ test("reparte una meta general entre vendedores", async ({ page }) => {
   await expect(page.getByRole("listitem").filter({ hasText: `${name} · ${sellers[1]}` })).toContainText("de 4");
 });
 
+test("consulta la venta por vendedor sin IA", async ({ page }) => {
+  await page.getByRole("link", { name: "Consultas" }).first().click();
+  await expect(page.getByRole("heading", { name: "Consultas" })).toBeVisible();
+  await expect(page.getByText(/se activan cuando el administrador configure la IA/)).toBeVisible();
+  await page.getByLabel("Qué medir").selectOption({ label: "Unidades vendidas" });
+  await page.getByLabel("Agrupar por").selectOption({ label: "Vendedor" });
+  await page.getByRole("button", { name: "Consultar" }).click();
+  await expect(page.getByRole("heading", { name: /^Unidades vendidas por vendedor/ })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Unidades vendidas" }).getByRole("rowheader").first()).toBeVisible();
+  await page.goto("/consultas?metric=salarios&group=total&from=2026-01-01&to=2026-12-31");
+  await expect(page.getByRole("alert").filter({ hasText: "Elige qué medir" })).toBeVisible();
+});
+
 test("arma un equipo y le pone una meta", async ({ page }) => {
   const team = `Equipo E2E ${stamp}`;
   await page.goto("/administracion");
