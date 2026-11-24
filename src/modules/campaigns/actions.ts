@@ -9,13 +9,42 @@ import { campaignSchema, costSchema, segmentSchema, stepSchema } from "./schemas
 export async function createCampaign(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = campaignSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { source_id, start_date, ...fields } = parsed.data;
   const supabase = await createClient();
   const [{ data: org }, { data: me }] = await Promise.all([supabase.rpc("current_org_id"), supabase.rpc("current_profile_id")]);
   if (!org || !me) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+  // Al copiar se traen la secuencia y el segmento; nunca audiencia, resultados, tareas ni costo real.
+  let steps: { day_offset: number; activity_type: string; subject: string }[] = [];
+  let segment = {};
+  if (source_id) {
+    const [{ data: src }, { data: srcSteps }] = await Promise.all([
+      supabase.from("campaigns").select("segment").eq("id", source_id).maybeSingle(),
+      supabase.from("campaign_steps").select("day_offset, activity_type, subject").eq("campaign_id", source_id).order("day_offset").order("created_at"),
+    ]);
+    if (!src) return { error: "No se encontró la campaña de origen." };
+    steps = srcSteps ?? [];
+    if (!fields.is_template) segment = src.segment ?? {};
+  }
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
   const { data, error } = await supabase.from("campaigns")
-    .insert({ ...parsed.data, organization_id: org, owner_id: me, created_by: me }).select("id").single();
+    .insert({ ...fields, start_date: start_date ?? today, segment, organization_id: org, owner_id: me, created_by: me }).select("id").single();
   if (error) return { error: dbErrorMessage(error) };
+  if (steps.length) {
+    const { error: stepsError } = await supabase.from("campaign_steps")
+      .insert(steps.map((st) => ({ ...st, campaign_id: data.id, organization_id: org })));
+    if (stepsError) {
+      await supabase.from("campaigns").delete().eq("id", data.id); // no dejar una copia a medias
+      return { error: `No se pudo copiar la secuencia: ${dbErrorMessage(stepsError)}` };
+    }
+  }
   redirect(`/campanas/${data.id}`);
+}
+
+export async function deleteTemplate(templateId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("campaigns").delete().eq("id", templateId).eq("is_template", true);
+  if (error) redirect(`/campanas/${templateId}?error=borrar`);
+  redirect("/campanas?estatus=plantillas");
 }
 
 export async function addMembers(campaignId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {

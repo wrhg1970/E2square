@@ -19,13 +19,18 @@ export const campaignSchema = z.object({
   name: z.string().trim().min(2, "El nombre es muy corto").max(200),
   campaign_type: z.enum(keys(campaignTypes), "Elige un tipo"),
   product_id: opt(z.uuid()),
-  start_date: z.iso.date("Fecha de inicio no válida"),
+  // Una plantilla no necesita fechas; la acción le pone la de hoy porque la columna es obligatoria.
+  start_date: opt(z.iso.date("Fecha de inicio no válida")),
   end_date: opt(z.iso.date("Fecha de fin no válida")),
   currency_code: currency,
   budget_amount: money.default(0),
   lead_goal: leadGoal,
   notes: opt(z.string().trim().max(5000)),
-}).refine((d) => !d.end_date || d.end_date >= d.start_date, { message: "El fin no puede ser antes del inicio", path: ["end_date"] });
+  is_template: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  // Campaña o plantilla de la que se copian la secuencia y el segmento.
+  source_id: opt(z.uuid()),
+}).refine((d) => d.is_template || d.start_date, { message: "Elige la fecha de inicio", path: ["start_date"] })
+  .refine((d) => !d.end_date || !d.start_date || d.end_date >= d.start_date, { message: "El fin no puede ser antes del inicio", path: ["end_date"] });
 
 export const costSchema = z.object({ actual_cost: money, lead_goal: leadGoal });
 

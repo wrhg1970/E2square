@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { activityTypes } from "@/modules/activities/labels";
 import { formatDay } from "@/modules/activities/time";
 import { DocumentsPanel } from "@/modules/documents/documents-panel";
-import { addMembers, addStep, closeCampaign, launchCampaign, removeMember, removeStep, updateCost } from "@/modules/campaigns/actions";
+import { addMembers, addStep, closeCampaign, deleteTemplate, launchCampaign, removeMember, removeStep, updateCost } from "@/modules/campaigns/actions";
 import { campaignStatuses, campaignTone, campaignTypes, type CampaignResults } from "@/modules/campaigns/schemas";
 import { buttonVariants } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
@@ -16,8 +16,9 @@ import { institutionStatuses, institutionTypes, toOptions } from "@/modules/inst
 import { formatMoney } from "@/modules/opportunities/labels";
 import { progressPct } from "@/modules/goals/labels";
 
-export default async function CampaignPage({ params }: PageProps<"/campanas/[id]">) {
+export default async function CampaignPage({ params, searchParams }: PageProps<"/campanas/[id]">) {
   const { id } = await params;
+  const sp = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const supabase = await createClient();
   const { data: c } = await supabase.from("campaigns").select("*").eq("id", id).maybeSingle();
@@ -40,7 +41,9 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
   const contact = new Map((contacts ?? []).map((x) => [x.id, `${x.first_name} ${x.last_name}`.trim()]));
   const money = (n: number) => formatMoney(n, c.currency_code);
   const leadPct = r.lead_goal ? progressPct(r.leads, r.lead_goal) : null;
-  const editable = canManage && (c.status === "draft" || c.status === "active");
+  const editable = canManage && !c.is_template && (c.status === "draft" || c.status === "active");
+  // Segmento guardado (por ejemplo, copiado de otra campaña) para volver a aplicarlo con un clic.
+  const seg = (c.segment ?? {}) as { country?: string; types?: string[]; owner?: string; status?: string };
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -48,13 +51,37 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
         <Link href="/campanas" className="text-sm text-muted-foreground hover:underline">← Campañas</Link>
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{c.name}</h1>
-          <Pill tone={campaignTone[c.status]}>{campaignStatuses[c.status as keyof typeof campaignStatuses]}</Pill>
+          {c.is_template ? <Pill tone="sky">Plantilla</Pill> : <Pill tone={campaignTone[c.status]}>{campaignStatuses[c.status as keyof typeof campaignStatuses]}</Pill>}
         </div>
         <p className="text-sm text-muted-foreground">
-          {campaignTypes[c.campaign_type as keyof typeof campaignTypes]} · {formatDay(c.start_date)}{c.end_date ? ` – ${formatDay(c.end_date)}` : ""} · Presupuesto {money(Number(c.budget_amount))}
+          {campaignTypes[c.campaign_type as keyof typeof campaignTypes]}
+          {!c.is_template && <> · {formatDay(c.start_date)}{c.end_date ? ` – ${formatDay(c.end_date)}` : ""}</>}
+          {" "}· Presupuesto {money(Number(c.budget_amount))}{c.is_template && c.lead_goal ? ` · Meta de ${c.lead_goal} leads` : ""}
         </p>
+        {canManage && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {c.is_template ? (
+              <>
+                <Link href={`/campanas?nueva=${id}`} className={buttonVariants()}>Crear campaña con esta plantilla</Link>
+                <form action={deleteTemplate.bind(null, id)}><button type="submit" className={buttonVariants({ variant: "outline" })}>Borrar plantilla</button></form>
+              </>
+            ) : (
+              <>
+                <Link href={`/campanas?nueva=${id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>Duplicar campaña</Link>
+                <Link href={`/campanas?nueva=${id}&plantilla=1`} className={buttonVariants({ variant: "outline", size: "sm" })}>Guardar como plantilla</Link>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
+      {sp.error === "borrar" && <p role="alert" className="text-sm text-red-700">No se pudo borrar la plantilla. Si tiene documentos, quítalos primero.</p>}
+      {c.is_template ? (
+        <p className="rounded-xl border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
+          Esta es una plantilla: guarda el tipo, el proveedor, el presupuesto, la meta de leads, las notas y la secuencia. No se lanza ni lleva audiencia.
+          Cada campaña que crees con ella nace en borrador y luego le eliges fechas y audiencia. Cambiar la plantilla no cambia las campañas ya creadas.
+        </p>
+      ) : (<>
       <section aria-label="Resultados" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Audiencia" value={String(r.members)} hint={`${r.with_consent} con consentimiento`} />
         <Tile label="Respondieron" value={String(r.responded)} hint={`${r.meetings} reuniones o visitas hechas`} />
@@ -73,6 +100,7 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
       <p className="text-xs text-muted-foreground">
         Cuenta para la campaña toda oportunidad creada marcada con ella (campo &ldquo;Campaña&rdquo; al crear la oportunidad). Lead: cada institución que abrió al menos una de esas oportunidades. Respuestas: correos o WhatsApp recibidos de la institución desde el lanzamiento.
       </p>
+      </>)}
 
       {editable && (
         <div className="flex flex-wrap items-end gap-x-8 gap-y-4 rounded-xl border border-border bg-background p-4 shadow-sm">
@@ -139,7 +167,7 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
         )}
       </section>
 
-      <section className="space-y-3">
+      {!c.is_template && <section className="space-y-3">
         <h2 className="text-lg font-semibold">Audiencia ({(members ?? []).length})</h2>
         {editable && (
           <Reveal label="Agregar instituciones por segmento" variant={(members ?? []).length ? "outline" : "default"} open={c.status === "draft" && (members ?? []).length === 0}>
@@ -148,15 +176,15 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
             </p>
             <ActionForm action={addMembers.bind(null, id)} submitLabel="Agregar a la audiencia" className="space-y-4">
               <FormBlock title="Segmento">
-                <Field label="País" name="country" placeholder="MX" maxLength={2} />
-                <SelectField label="Responsable" name="owner" options={[{ value: "", label: "Todos" }, ...(owners ?? []).map((o) => ({ value: o.id, label: o.full_name || o.email }))]} />
-                <SelectField label="Estatus" name="status" options={toOptions(institutionStatuses, "Todos")} />
+                <Field label="País" name="country" placeholder="MX" maxLength={2} defaultValue={seg.country} />
+                <SelectField label="Responsable" name="owner" defaultValue={seg.owner ?? ""} options={[{ value: "", label: "Todos" }, ...(owners ?? []).map((o) => ({ value: o.id, label: o.full_name || o.email }))]} />
+                <SelectField label="Estatus" name="status" options={toOptions(institutionStatuses, "Todos")} defaultValue={seg.status ?? ""} />
               </FormBlock>
               <fieldset className="text-sm">
                 <legend className="font-medium">Tipos (ninguno = todos)</legend>
                 <div className="mt-1 flex flex-wrap gap-3">
                   {Object.entries(institutionTypes).map(([k, label]) => (
-                    <label key={k} className="flex items-center gap-1.5"><input type="checkbox" name="types" value={k} /> {label}</label>
+                    <label key={k} className="flex items-center gap-1.5"><input type="checkbox" name="types" value={k} defaultChecked={seg.types?.includes(k)} /> {label}</label>
                   ))}
                 </div>
               </fieldset>
@@ -194,12 +222,14 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
             </tbody>
           </table></div>
         )}
-      </section>
+      </section>}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Documentos</h2>
-        <DocumentsPanel campaignId={id} canWrite={Boolean(canManage)} />
-      </section>
+      {!c.is_template && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Documentos</h2>
+          <DocumentsPanel campaignId={id} canWrite={Boolean(canManage)} />
+        </section>
+      )}
     </div>
   );
 }

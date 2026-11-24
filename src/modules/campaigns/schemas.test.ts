@@ -8,6 +8,13 @@ describe("campañas", () => {
     expect(campaignSchema.safeParse({ ...base, end_date: "2027-01-01" }).success).toBe(false);
     expect(campaignSchema.safeParse({ ...base, campaign_type: "spam" }).success).toBe(false);
   });
+  it("plantilla: sin fecha y con origen opcional", () => {
+    expect(campaignSchema.safeParse({ ...base, start_date: "" }).success).toBe(false);
+    const t = campaignSchema.parse({ ...base, start_date: "", is_template: "on", source_id: "" });
+    expect(t).toMatchObject({ is_template: true, start_date: null, source_id: null });
+    expect(campaignSchema.parse(base).is_template).toBe(false);
+    expect(campaignSchema.safeParse({ ...base, source_id: "no-es-uuid" }).success).toBe(false);
+  });
   it("meta de leads opcional, entera y positiva", () => {
     expect(campaignSchema.parse({ ...base, lead_goal: "" }).lead_goal).toBeNull();
     expect(campaignSchema.parse({ ...base, lead_goal: "25" }).lead_goal).toBe(25);
