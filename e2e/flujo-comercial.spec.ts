@@ -496,6 +496,34 @@ test("reparte una meta general entre vendedores", async ({ page }) => {
   await expect(page.getByRole("listitem").filter({ hasText: `${name} · ${sellers[1]}` })).toContainText("de 4");
 });
 
+test("arma un equipo y le pone una meta", async ({ page }) => {
+  const team = `Equipo E2E ${stamp}`;
+  await page.goto("/administracion");
+  await page.getByLabel("Nombre del equipo").fill(team);
+  await page.getByRole("button", { name: "Crear equipo" }).click();
+  await expect(page.getByRole("cell", { name: team, exact: true })).toBeVisible();
+  const assign = page.locator("form").filter({ has: page.getByRole("button", { name: "Asignar al equipo" }) });
+  await assign.getByLabel("Equipo").selectOption({ label: team });
+  await assign.getByLabel("Persona").selectOption({ label: `vende1-${stamp}@e2square.test` });
+  await assign.getByRole("button", { name: "Asignar al equipo" }).click();
+  await expect(page.getByRole("row", { name: new RegExp(team) })).toContainText(`vende1-${stamp}@e2square.test`);
+
+  const name = `Meta equipo ${stamp}`;
+  await page.goto("/metas");
+  await page.getByLabel("Nombre").fill(name);
+  await page.getByLabel("Qué se mide").selectOption({ label: "Unidades vendidas" });
+  await page.getByLabel("Objetivo", { exact: true }).fill("20");
+  await page.getByLabel("Periodo", { exact: true }).selectOption({ label: "Mes" });
+  await page.getByLabel("Desde (o cualquier día del periodo)").fill(new Date().toISOString().slice(0, 10));
+  await page.getByLabel("Equipo (en lugar de vendedor)").selectOption({ label: team });
+  await page.getByRole("button", { name: "Crear meta" }).click();
+  await expect(page.getByText("Meta creada.")).toBeVisible();
+  const goal = page.getByRole("listitem").filter({ hasText: name });
+  await expect(goal).toContainText(`Equipo: ${team}`);
+  await goal.getByText("Repartir entre vendedores").click();
+  await expect(goal.getByRole("checkbox", { name: `vende1-${stamp}@e2square.test` })).toBeChecked();
+});
+
 test("cierra sesión", async ({ page }) => {
   await page.getByRole("button", { name: /Cerrar sesión|Salir/ }).click();
   await expect(page).toHaveURL(/\/login/);

@@ -6,7 +6,7 @@ import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
 import { CURRENCIES } from "@/modules/catalog/labels";
 import { scoreWeightsSchema } from "@/modules/institutions/scoring";
-import { automationSchema, businessUnitSchema, companySchema, exchangeRateSchema, invitationSchema, officeSchema } from "./schemas";
+import { automationSchema, businessUnitSchema, companySchema, exchangeRateSchema, invitationSchema, officeSchema, teamMemberSchema, teamSchema } from "./schemas";
 
 // La autorización real la aplica RLS en la base; aquí solo validamos y traducimos errores.
 async function insertInto(table: string, schema: z.ZodType, formData: FormData, success: string): Promise<ActionState> {
@@ -135,4 +135,26 @@ export async function removeUserScope(formData: FormData) {
   const supabase = await createClient();
   await supabase.from("user_scopes").delete().eq("id", id);
   revalidatePath(`/administracion/usuarios/${profileId}`);
+}
+
+export async function createTeam(_prev: ActionState, formData: FormData) {
+  return insertInto("teams", teamSchema, formData, "Equipo creado.");
+}
+
+// Cada persona está en un solo equipo: asignarla a otro la mueve.
+export async function setTeamMember(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = teamMemberSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data: orgId } = await supabase.rpc("current_org_id");
+  const { error } = await supabase.from("team_members").upsert({ ...parsed.data, organization_id: orgId }, { onConflict: "profile_id" });
+  if (error) return { error: dbErrorMessage(error) };
+  revalidatePath("/administracion");
+  return { success: "Persona asignada al equipo." };
+}
+
+export async function removeTeamMember(profileId: string) {
+  const supabase = await createClient();
+  await supabase.from("team_members").delete().eq("profile_id", profileId);
+  revalidatePath("/administracion");
 }

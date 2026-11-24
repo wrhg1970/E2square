@@ -43,3 +43,11 @@ describe("parseSplit", () => {
     expect(parseSplit([a], () => "")).toHaveProperty("error");
   });
 });
+
+describe("meta de equipo", () => {
+  it("no admite vendedor y equipo a la vez", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    expect(goalSchema.safeParse({ ...base, metric: "units", owner_id: id, team_id: id }).success).toBe(false);
+    expect(goalSchema.safeParse({ ...base, metric: "units", currency_code: "", team_id: id }).success).toBe(true);
+  });
+});
