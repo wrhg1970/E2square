@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ActionForm } from "@/components/ui/action-form";
+import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createInstitution } from "./actions";
 import { InstitutionFields } from "./institution-fields";
@@ -24,18 +25,27 @@ export function NewInstitutionForm({ options, aiEnabled }: { options: { offices:
 
   return (
     <div className="space-y-6">
-      <section className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-4">
+      <section aria-labelledby="buscar" className="space-y-3 rounded-xl border border-border border-l-4 border-l-primary bg-background p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-teal-700"><Globe aria-hidden className="size-5" /></span>
+          <div>
+            <h2 id="buscar" className="font-semibold">Ahórrate la captura</h2>
+            <p className="text-sm text-muted-foreground">
+              {aiEnabled ? "Escribe su nombre o sitio web: buscamos sus datos en internet y llenamos el formulario para que solo lo revises." : "Escribe su sitio web: leemos los datos publicados y llenamos el formulario para que solo lo revises."}
+            </p>
+          </div>
+        </div>
         <form action={search} className="flex flex-wrap items-end gap-3">
           <label className="flex min-w-64 flex-1 flex-col gap-1 text-sm">
-            <span className="font-medium">Buscar datos de la institución</span>
+            <span className="sr-only">Buscar datos de la institución</span>
             <input name="q" defaultValue={state?.query} required minLength={3} maxLength={200}
               placeholder={aiEnabled ? "Nombre o sitio web, p. ej. Colegio Americano de Puebla" : "Sitio web, p. ej. colegio.edu.mx"}
-              className="h-9 rounded-md border border-border bg-background px-3" />
+              className="h-9 rounded-md border border-border bg-background px-3 shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" />
           </label>
-          <Button type="submit" disabled={pending}>{pending ? "Buscando…" : "Buscar"}</Button>
+          <Button type="submit" disabled={pending}>{pending ? "Buscando…" : "Buscar datos"}</Button>
         </form>
         <p className="text-xs text-muted-foreground">
-          {aiEnabled ? "Busca en internet y en el sitio de la institución. Revisa los datos antes de guardar." : "Lee los datos publicados en el sitio web. Para buscar por nombre, el administrador debe configurar la IA."}
+          {aiEnabled ? "Revisa los datos antes de guardar." : "¿No tiene sitio web? Llena el formulario de abajo directamente. Para buscar por nombre, el administrador debe configurar la IA."}
         </p>
         <div role="status" aria-live="polite">
           {state?.error && <p className="text-sm text-red-700">{state.error}</p>}

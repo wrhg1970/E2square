@@ -433,22 +433,20 @@ test("importa ventas históricas con vista previa y sin duplicar", async ({ page
   await page.goto("/oportunidades");
   await page.getByRole("link", { name: "Importar Excel" }).click();
   await expect(page.getByRole("heading", { name: "Importar oportunidades" })).toBeVisible();
-  await page.getByLabel(/Archivo/).setInputFiles(file);
-  await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByLabel("Archivo de Excel").setInputFiles(file);
+  await page.getByRole("button", { name: "Revisar archivo" }).click();
   const status = page.getByRole("status");
   await expect(status).toContainText("3 filas · 1 listas · 0 posibles duplicados · 2 con errores");
   await expect(status).toContainText("necesitan fecha de cierre");
   await expect(status).toContainText(`No existe la institución "Colegio Inexistente ${stamp}"`);
   await expect(status).toContainText(`Histórica ${stamp} · ${institution} · MXN 1,500 · Ganada`);
 
-  await page.getByLabel(/Archivo/).setInputFiles(file);
-  await page.getByLabel("Importar las filas listas").check();
-  await page.getByRole("button", { name: "Continuar" }).click();
+  // El mismo archivo se importa sin volver a elegirlo.
+  await page.getByRole("button", { name: "Importar la fila lista" }).click();
   await expect(status).toContainText("Se crearon 1 oportunidades");
 
   // Repetir el archivo no duplica.
-  await page.getByLabel(/Archivo/).setInputFiles(file);
-  await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByRole("button", { name: "Revisar de nuevo" }).click();
   await expect(status).toContainText("0 listas · 1 posibles duplicados");
 });
 
