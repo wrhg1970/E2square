@@ -46,3 +46,18 @@ export function gmailQuery(lastSync: string | null, now = new Date()): string {
   const after = Math.floor(Math.max(new Date(lastSync).getTime() - 3_600_000, now.getTime() - 30 * 86_400_000) / 1000);
   return `after:${after} -in:chats`;
 }
+
+// Correo de texto en formato RFC 2822 codificado base64url, como lo pide gmail.users.messages.send.
+export function buildRawEmail(to: string, subject: string, body: string): string {
+  const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
+  const mime = [
+    `To: ${to.replace(/[\r\n]/g, "")}`,
+    `Subject: =?UTF-8?B?${b64(subject.replace(/[\r\n]+/g, " "))}?=`,
+    "MIME-Version: 1.0",
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    b64(body.replace(/\r?\n/g, "\r\n")).replace(/.{76}/g, "$&\r\n"),
+  ].join("\r\n");
+  return Buffer.from(mime, "utf8").toString("base64url");
+}

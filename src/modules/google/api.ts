@@ -54,6 +54,8 @@ export async function googleClient(env: GoogleEnv, supabase: SupabaseClient) {
         .then((r) => (r.messages ?? []).map((m) => m.id)),
     getMessage: (id: string) =>
       call<GmailMessage>(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`),
+    sendMessage: (raw: string) =>
+      call<{ id: string; threadId: string }>("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", { method: "POST", body: JSON.stringify({ raw }) }),
     createEvent: (event: Record<string, unknown>) =>
       call<{ id: string; htmlLink: string }>("https://www.googleapis.com/calendar/v3/calendars/primary/events", { method: "POST", body: JSON.stringify(event) }),
   };
