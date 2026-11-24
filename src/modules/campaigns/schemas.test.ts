@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campaignSchema, segmentSchema, stepSchema } from "./schemas";
+import { campaignSchema, costSchema, segmentSchema, stepSchema } from "./schemas";
 
 describe("campañas", () => {
   const base = { name: "Regreso a clases", campaign_type: "email", start_date: "2027-01-10", currency_code: "MXN" };
@@ -7,6 +7,13 @@ describe("campañas", () => {
     expect(campaignSchema.safeParse(base).success).toBe(true);
     expect(campaignSchema.safeParse({ ...base, end_date: "2027-01-01" }).success).toBe(false);
     expect(campaignSchema.safeParse({ ...base, campaign_type: "spam" }).success).toBe(false);
+  });
+  it("meta de leads opcional, entera y positiva", () => {
+    expect(campaignSchema.parse({ ...base, lead_goal: "" }).lead_goal).toBeNull();
+    expect(campaignSchema.parse({ ...base, lead_goal: "25" }).lead_goal).toBe(25);
+    expect(campaignSchema.safeParse({ ...base, lead_goal: "0" }).success).toBe(false);
+    expect(campaignSchema.safeParse({ ...base, lead_goal: "2.5" }).success).toBe(false);
+    expect(costSchema.parse({ actual_cost: "100", lead_goal: "" })).toEqual({ actual_cost: 100, lead_goal: null });
   });
   it("normaliza el segmento", () => {
     expect(segmentSchema.parse({ country: "mx", types: ["school"], owner: "", status: "" })).toMatchObject({ country: "MX", types: ["school"], owner: null, status: null });

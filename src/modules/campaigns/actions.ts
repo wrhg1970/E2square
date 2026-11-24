@@ -47,7 +47,7 @@ export async function updateCost(campaignId: string, _prev: ActionState, formDat
   if (error) return { error: dbErrorMessage(error) };
   if (!data?.length) return { error: "No tienes permiso para editar campañas." };
   revalidatePath(`/campanas/${campaignId}`);
-  return { success: "Costo actualizado." };
+  return { success: "Cambios guardados." };
 }
 
 export async function closeCampaign(campaignId: string, status: "finished" | "cancelled") {

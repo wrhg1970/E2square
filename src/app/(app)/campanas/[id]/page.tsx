@@ -14,6 +14,7 @@ import { FormBlock, Reveal } from "@/components/ui/reveal";
 import { StatTile as Tile } from "@/components/ui/stat-tile";
 import { institutionStatuses, institutionTypes, toOptions } from "@/modules/institutions/labels";
 import { formatMoney } from "@/modules/opportunities/labels";
+import { progressPct } from "@/modules/goals/labels";
 
 export default async function CampaignPage({ params }: PageProps<"/campanas/[id]">) {
   const { id } = await params;
@@ -38,6 +39,7 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
   const inst = new Map((insts ?? []).map((i) => [i.id, i]));
   const contact = new Map((contacts ?? []).map((x) => [x.id, `${x.first_name} ${x.last_name}`.trim()]));
   const money = (n: number) => formatMoney(n, c.currency_code);
+  const leadPct = r.lead_goal ? progressPct(r.leads, r.lead_goal) : null;
   const editable = canManage && (c.status === "draft" || c.status === "active");
 
   return (
@@ -56,6 +58,8 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
       <section aria-label="Resultados" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Audiencia" value={String(r.members)} hint={`${r.with_consent} con consentimiento`} />
         <Tile label="Respondieron" value={String(r.responded)} hint={`${r.meetings} reuniones o visitas hechas`} />
+        <Tile label="Leads" value={r.lead_goal ? `${r.leads} de ${r.lead_goal}` : String(r.leads)}
+          hint={leadPct === null ? "Sin meta de leads" : `${leadPct}% de la meta`} tone={leadPct !== null && leadPct >= 100 ? "good" : "default"} />
         <Tile label="Oportunidades" value={String(r.opportunities)} hint={`Abierto ${money(r.open_amount)}`} />
         <Tile label="Ganado" value={money(r.won_amount)} hint={`${r.won_count} ventas · margen ${money(r.won_margin)}`} tone={r.won_count ? "good" : "default"} />
         <Tile label="Costo real" value={money(r.cost)} />
@@ -67,13 +71,14 @@ export default async function CampaignPage({ params }: PageProps<"/campanas/[id]
       )}
       {r.unconverted > 0 && <p className="text-sm text-amber-700">{r.unconverted} oportunidades en otra moneda no tienen tipo de cambio y no se suman.</p>}
       <p className="text-xs text-muted-foreground">
-        Cuenta para la campaña toda oportunidad creada marcada con ella (campo &ldquo;Campaña&rdquo; al crear la oportunidad). Respuestas: correos o WhatsApp recibidos de la institución desde el lanzamiento.
+        Cuenta para la campaña toda oportunidad creada marcada con ella (campo &ldquo;Campaña&rdquo; al crear la oportunidad). Lead: cada institución que abrió al menos una de esas oportunidades. Respuestas: correos o WhatsApp recibidos de la institución desde el lanzamiento.
       </p>
 
       {editable && (
         <div className="flex flex-wrap items-end gap-x-8 gap-y-4 rounded-xl border border-border bg-background p-4 shadow-sm">
-          <ActionForm action={updateCost.bind(null, id)} submitLabel="Guardar costo" submitVariant="outline" className="flex flex-wrap items-end gap-3">
+          <ActionForm action={updateCost.bind(null, id)} submitLabel="Guardar" submitVariant="outline" className="flex flex-wrap items-end gap-3">
             <Field label="Costo real" name="actual_cost" type="number" min={0} step="0.01" defaultValue={String(c.actual_cost)} />
+            <Field label="Meta de leads" name="lead_goal" type="number" min={1} step={1} placeholder="Sin meta" defaultValue={c.lead_goal == null ? "" : String(c.lead_goal)} />
           </ActionForm>
           {c.status === "draft" ? (
             <ActionForm action={launchCampaign.bind(null, id)} submitLabel="Lanzar campaña">{null}</ActionForm>
