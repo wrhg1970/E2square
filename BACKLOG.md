@@ -50,7 +50,7 @@ Prioridad: P0 imprescindible, P1 importante, P2 evolución.
 ## Fase 6 — Integraciones
 - P1 Gmail OAuth y registro de mensajes.
 - P1 Google Calendar.
-- P1 Campañas y secuencias con controles. Hecho: campañas con audiencia por segmento (excluye inactivas y contactos que pidieron no ser contactados), lanzamiento que asigna una tarea de seguimiento por institución a su responsable, atribución de oportunidades y resultados con ROI sobre margen. Pendiente: secuencias de varios pasos y envío masivo (correo/WhatsApp), y confirmar reglas con Will.
+- P1 Campañas y secuencias con controles. Hecho: campañas con audiencia por segmento (excluye inactivas y contactos que pidieron no ser contactados), lanzamiento que asigna una tarea de seguimiento por institución a su responsable, atribución de oportunidades y resultados con ROI sobre margen. Secuencias de varios pasos (hasta 10: día, tipo y asunto) que al lanzar se vuelven tareas por institución y se detienen cuando la institución abre una oportunidad de la campaña (reglas propuestas 2026-11-24). Pendiente: envío masivo automático (correo/WhatsApp) y confirmar reglas con Will.
 - P1 WhatsApp Cloud API y webhooks. Hecho: recepción por webhook firmado e idempotente, estados, envío con ventana de 24 h, plantillas aprobadas, consentimiento registrado y baja por palabra clave. Falta probar con credenciales reales de Meta.
 - P1 Sincronización y monitoreo. Hecho: panel "Estado de integraciones" en Administración (Google por usuario con aviso si Gmail lleva 7+ días sin sincronizar, números de WhatsApp y último aviso, envíos fallidos o sin confirmar, IA). Pendiente: sincronización automática programada.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campaignSchema, segmentSchema } from "./schemas";
+import { campaignSchema, segmentSchema, stepSchema } from "./schemas";
 
 describe("campañas", () => {
   const base = { name: "Regreso a clases", campaign_type: "email", start_date: "2027-01-10", currency_code: "MXN" };
@@ -11,5 +11,15 @@ describe("campañas", () => {
   it("normaliza el segmento", () => {
     expect(segmentSchema.parse({ country: "mx", types: ["school"], owner: "", status: "" })).toMatchObject({ country: "MX", types: ["school"], owner: null, status: null });
     expect(segmentSchema.safeParse({ types: ["castillo"] }).success).toBe(false);
+  });
+});
+
+describe("pasos de secuencia", () => {
+  it("acepta día, tipo y asunto", () => {
+    expect(stepSchema.parse({ day_offset: "3", activity_type: "email", subject: " Enviar folleto " })).toEqual({ day_offset: 3, activity_type: "email", subject: "Enviar folleto" });
+  });
+  it("rechaza días negativos o fraccionarios", () => {
+    expect(stepSchema.safeParse({ day_offset: "-1", activity_type: "call", subject: "Llamar" }).success).toBe(false);
+    expect(stepSchema.safeParse({ day_offset: "1.5", activity_type: "call", subject: "Llamar" }).success).toBe(false);
   });
 });

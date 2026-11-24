@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
-import { campaignSchema, costSchema, segmentSchema } from "./schemas";
+import { campaignSchema, costSchema, segmentSchema, stepSchema } from "./schemas";
 
 export async function createCampaign(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = campaignSchema.safeParse(Object.fromEntries(formData));
@@ -36,7 +36,7 @@ export async function launchCampaign(campaignId: string): Promise<ActionState> {
   const { data, error } = await supabase.rpc("launch_campaign", { p_campaign: campaignId });
   if (error) return { error: dbErrorMessage(error) };
   revalidatePath(`/campanas/${campaignId}`);
-  return { success: `Campaña lanzada: ${data} tareas de seguimiento asignadas a los responsables.` };
+  return { success: `Campaña lanzada: ${data} tareas asignadas a los responsables.` };
 }
 
 export async function updateCost(campaignId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -59,5 +59,22 @@ export async function closeCampaign(campaignId: string, status: "finished" | "ca
 export async function removeMember(campaignId: string, memberId: string) {
   const supabase = await createClient();
   await supabase.from("campaign_members").delete().eq("id", memberId);
+  revalidatePath(`/campanas/${campaignId}`);
+}
+
+export async function addStep(campaignId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = stepSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data: org } = await supabase.rpc("current_org_id");
+  const { error } = await supabase.from("campaign_steps").insert({ ...parsed.data, campaign_id: campaignId, organization_id: org });
+  if (error) return { error: error.code === "42501" ? "Solo se editan los pasos de una campaña en borrador (máximo 10)." : dbErrorMessage(error) };
+  revalidatePath(`/campanas/${campaignId}`);
+  return { success: "Paso agregado." };
+}
+
+export async function removeStep(campaignId: string, stepId: string) {
+  const supabase = await createClient();
+  await supabase.from("campaign_steps").delete().eq("id", stepId);
   revalidatePath(`/campanas/${campaignId}`);
 }

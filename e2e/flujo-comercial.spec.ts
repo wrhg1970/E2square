@@ -339,12 +339,21 @@ test("arma, lanza y mide una campaña", async ({ page }) => {
   await page.getByLabel("Inicio").fill(new Date().toISOString().slice(0, 10));
   await page.getByRole("button", { name: "Crear campaña" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
+  for (const [day, type, subject] of [["0", "Llamada", "Invitar"], ["3", "Correo", "Enviar folleto"]]) {
+    await page.getByLabel("Día", { exact: true }).fill(day);
+    await page.getByLabel("Tipo de paso").selectOption({ label: type });
+    await page.getByLabel("Qué hacer").fill(subject);
+    await page.getByRole("button", { name: "Agregar paso" }).click();
+    await expect(page.getByText(`${type} · ${subject}`)).toBeVisible();
+  }
   await page.getByLabel("Colegio", { exact: true }).check();
   await page.getByRole("button", { name: "Agregar a la audiencia" }).click();
   await expect(page.getByText(/Se agregaron \d+ instituciones/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Quitar" }).first()).toBeVisible();
   await page.getByRole("button", { name: "Lanzar campaña" }).click();
   await expect(page.getByText(/^Lanzada el /)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Agregar paso" })).toHaveCount(0);
+  await expect(page.getByText("Correo · Enviar folleto")).toBeVisible();
   await expect(page.getByText(/Activa/).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Crear oportunidad" }).first()).toBeVisible();
   const pending = page.getByText("Tareas pendientes").locator("..");

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { currency } from "@/modules/catalog/schemas";
+import { activityTypes } from "@/modules/activities/labels";
 import { institutionStatuses, institutionTypes } from "@/modules/institutions/labels";
 
 export const campaignTypes = {
@@ -30,6 +31,12 @@ export const segmentSchema = z.object({
   types: z.array(z.enum(keys(institutionTypes))).default([]),
   owner: opt(z.uuid()),
   status: opt(z.enum(keys(institutionStatuses))),
+});
+
+export const stepSchema = z.object({
+  day_offset: z.coerce.number("Usa un número de días").int("Días enteros").min(0, "Desde el día 0").max(365, "Máximo 365 días"),
+  activity_type: z.enum(keys(activityTypes), "Elige un tipo"),
+  subject: z.string().trim().min(2, "Describe el paso").max(150),
 });
 
 export type CampaignResults = {
