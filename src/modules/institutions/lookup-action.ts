@@ -4,14 +4,14 @@ import { lookup } from "node:dns/promises";
 import { createClient } from "@/lib/supabase/server";
 import { aiEnv } from "@/modules/ai/config";
 import { generateText } from "@/modules/ai/provider";
-import { type Candidate, isPrivateIp, looksLikeWebsite, normalizeUrl, parseCandidates, parseWebsite, SEARCH_SYSTEM } from "./lookup-parse";
+import { type Candidate, contactLinks, isPrivateIp, looksLikeWebsite, normalizeUrl, parseCandidates, parseWebsite, SEARCH_SYSTEM } from "./lookup-parse";
 
 export type LookupState = { candidates?: Candidate[]; error?: string; query?: string } | null;
 
 const MAX_BYTES = 1_000_000;
 
 // shortcut: valida la IP antes de cada salto pero no la fija para el fetch (rebinding DNS); suficiente en Vercel, que no expone red interna.
-async function safeFetch(start: URL): Promise<{ html: string; url: URL } | null> {
+async function safeFetch(start: URL, ms = 8000): Promise<{ html: string; url: URL } | null> {
   let url = start;
   for (let hop = 0; hop < 4; hop++) {
     if (!["http:", "https:"].includes(url.protocol) || (url.port && !["80", "443"].includes(url.port))) return null;
@@ -20,7 +20,7 @@ async function safeFetch(start: URL): Promise<{ html: string; url: URL } | null>
     const res = await fetch(url, {
       redirect: "manual",
       headers: { "user-agent": "Mozilla/5.0 (compatible; CRM-lookup)", accept: "text/html" },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(ms),
     });
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       url = new URL(res.headers.get("location")!, url);
@@ -43,9 +43,10 @@ export async function lookupInstitution(_prev: LookupState, formData: FormData):
   const candidates: Candidate[] = [];
   if (looksLikeWebsite(query)) {
     const url = normalizeUrl(query);
-    const page = url ? await safeFetch(url).catch(() => null) : null;
-    const c = page ? parseWebsite(page.html, page.url) : null;
-    if (c) candidates.push(c);
+    const home = url ? await safeFetch(url).catch(() => null) : null;
+    // La dirección y el teléfono suelen estar en "Contacto" o "Ubicación": se leen también (en paralelo, máx. 3).
+    const extra = home ? await Promise.all(contactLinks(home.html, home.url).map((u) => safeFetch(u, 6000).catch(() => null))) : [];
+    if (home) candidates.push(...parseWebsite([home, ...extra.filter((p) => p !== null)]));
   }
 
   if (aiEnv()) {
@@ -56,7 +57,8 @@ export async function lookupInstitution(_prev: LookupState, formData: FormData):
     if ("text" in r) {
       for (const c of parseCandidates(r.text)) {
         // Lo leído directo del sitio manda; la IA completa los huecos de esa misma institución.
-        const same = candidates.find((x) => x.website && c.website && new URL(normalizeUrl(c.website) ?? "https://x.invalid").hostname.replace(/^www\./, "") === new URL(x.website).hostname.replace(/^www\./, ""));
+        const same = candidates.find((x) => x.website && c.website && new URL(normalizeUrl(c.website) ?? "https://x.invalid").hostname.replace(/^www\./, "") === new URL(x.website).hostname.replace(/^www\./, "")
+          && (!x.city || !c.city || x.city === c.city));
         if (same) {
           for (const k of Object.keys(c) as (keyof Candidate)[]) if (!same[k] && c[k]) Object.assign(same, { [k]: c[k] });
         } else candidates.push(c);

@@ -60,7 +60,10 @@ export function NewInstitutionForm({ options, aiEnabled }: { options: { offices:
                       {[c.institution_type ? institutionTypes[c.institution_type] : null, c.city, c.region, c.country_code].filter(Boolean).join(" · ")}
                     </p>
                     {c.website && <p className="truncate text-muted-foreground">{c.website}</p>}
+                    {c.address && <p className="text-muted-foreground">{c.address}</p>}
                     {c.phone && <p className="text-muted-foreground">Tel. {c.phone}</p>}
+                    {c.email && <p className="truncate text-muted-foreground">{c.email}</p>}
+                    {c.contact_first_name && <p className="text-muted-foreground">{[c.contact_first_name, c.contact_last_name].filter(Boolean).join(" ")}{c.contact_job_title ? `, ${c.contact_job_title}` : ""}</p>}
                     <button type="button" onClick={() => setPicked({ n: (picked?.n ?? 0) + 1, c })}
                       className="mt-2 text-sm font-medium text-primary underline">
                       {picked?.c === c ? "Seleccionada" : "Usar estos datos"}
