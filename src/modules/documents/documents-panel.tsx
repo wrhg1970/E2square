@@ -62,7 +62,7 @@ export async function DocumentsPanel({ institutionId, opportunityId, productId, 
                   <ActionForm action={uploadDocument.bind(null, { ...target, root_id: d.root_id })} submitLabel="Guardar versión" className="mt-2 flex flex-wrap items-end gap-3">
                     <label className="flex flex-col gap-1 text-sm">
                       <span className="font-medium">Archivo de la nueva versión de {d.file_name}</span>
-                      <input type="file" name="file" accept={ACCEPT_ATTR} required className="text-sm" />
+                      <input type="file" name="file" accept={ACCEPT_ATTR} required className="max-w-full text-sm text-muted-foreground file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted" />
                     </label>
                   </ActionForm>
                 </details>
@@ -75,7 +75,7 @@ export async function DocumentsPanel({ institutionId, opportunityId, productId, 
         <ActionForm action={uploadDocument.bind(null, target)} submitLabel="Subir documento" className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">Archivo (máx. 15 MB)</span>
-            <input type="file" name="file" accept={ACCEPT_ATTR} required className="text-sm" />
+            <input type="file" name="file" accept={ACCEPT_ATTR} required className="max-w-full text-sm text-muted-foreground file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted" />
           </label>
           <SelectField label="Categoría" name="category" defaultValue="proposal" options={Object.entries(documentCategories).map(([value, label]) => ({ value, label }))} />
         </ActionForm>
