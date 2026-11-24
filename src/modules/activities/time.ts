@@ -45,3 +45,23 @@ export const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T0
 
 // Lunes de la semana que contiene ese día.
 export const weekStart = (day: string) => addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+
+// Vistas del calendario: días que se muestran (la de mes rellena hasta semanas completas, de lunes a domingo).
+export const calendarViews = { dia: "Día", semana: "Semana", mes: "Mes" } as const;
+export type CalendarView = keyof typeof calendarViews;
+
+export function calendarDays(view: CalendarView, day: string) {
+  if (view === "dia") return [day];
+  if (view === "semana") return Array.from({ length: 7 }, (_, i) => addDays(weekStart(day), i));
+  const first = `${day.slice(0, 7)}-01`;
+  const last = addDays(new Date(Date.UTC(+day.slice(0, 4), +day.slice(5, 7), 1)).toISOString().slice(0, 10), -1);
+  const days = [];
+  for (let d = weekStart(first); d <= last || days.length % 7; d = addDays(d, 1)) days.push(d);
+  return days;
+}
+
+// Día equivalente en el periodo anterior (-1) o siguiente (+1). En meses va al día 1.
+export function stepCalendar(view: CalendarView, day: string, n: number) {
+  if (view !== "mes") return addDays(day, n * (view === "dia" ? 1 : 7));
+  return new Date(Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1 + n, 1)).toISOString().slice(0, 10);
+}
