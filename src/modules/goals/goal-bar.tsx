@@ -4,7 +4,7 @@ import { type goalMetrics, progressPct } from "./labels";
 export type GoalProgress = {
   id: string; name: string; metric: keyof typeof goalMetrics; period_start: string; period_end: string; target: number;
   currency_code: string | null; owner_id: string | null; office_id: string | null; product_id: string | null;
-  actual: number; unconverted: number; company_id?: string | null; business_unit_id?: string | null;
+  actual: number; unconverted: number; company_id?: string | null; business_unit_id?: string | null; team_id?: string | null;
 };
 
 export const formatGoalValue = (v: number, currency: string | null) =>

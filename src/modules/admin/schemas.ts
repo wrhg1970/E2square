@@ -24,6 +24,13 @@ export const officeSchema = z.object({
   timezone: z.string().refine((tz) => Intl.supportedValuesOf("timeZone").includes(tz), "Zona horaria no válida"),
 });
 
+export const teamSchema = z.object({
+  name: z.string().trim().min(2, "Ponle nombre al equipo").max(120),
+  leader_id: optional(z.uuid()),
+});
+
+export const teamMemberSchema = z.object({ team_id: z.uuid("Elige un equipo"), profile_id: z.uuid("Elige una persona") });
+
 export const invitationSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email("Correo no válido")),
   role_id: z.uuid("Elige un rol"),
