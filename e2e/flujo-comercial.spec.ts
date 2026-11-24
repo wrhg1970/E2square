@@ -459,6 +459,14 @@ test("oportunidades muestra el embudo, la lista por etapa y el tablero", async (
   await page.getByRole("searchbox", { name: "Buscar colegio u oportunidad" }).fill("no-existe-zzz");
   await page.keyboard.press("Enter");
   await expect(page.getByText(/Ninguna oportunidad coincide|Todavía no hay oportunidades/)).toBeVisible();
+
+  // El buscador de institución solo acepta una de la lista (el servidor valida el id).
+  await page.goto("/oportunidades/nueva");
+  await page.getByLabel("Institución").fill("Colegio que no existe zzz");
+  await page.getByLabel("Proveedor").selectOption({ label: "IHS" });
+  await page.getByLabel("Nombre", { exact: true }).fill("Prueba sin institución");
+  await page.getByRole("button", { name: "Crear oportunidad" }).click();
+  await expect(page.getByRole("status")).toContainText("Elige una institución");
 });
 
 test("reparte una meta general entre vendedores", async ({ page }) => {
