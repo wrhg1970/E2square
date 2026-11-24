@@ -6,12 +6,22 @@ import { dayIn } from "@/modules/activities/time";
 import { loadScores } from "@/modules/institutions/scoring";
 import { formatMoney } from "@/modules/opportunities/labels";
 import { formatDay } from "@/modules/activities/time";
+import { CalendarCheck } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Reveal } from "@/components/ui/reveal";
+import { StatTile } from "@/components/ui/stat-tile";
 
-function Block({ title, count, children, tone }: { title: string; count: number; children: ReactNode; tone?: "alert" }) {
+// Bloque de la lista; los vacíos no se muestran para que lo importante quede arriba sin desplazarse.
+function Block({ title, count, children, tone, hint }: { title: string; count: number; children: ReactNode; tone?: "alert"; hint?: string }) {
+  if (count === 0) return null;
   return (
-    <section className="space-y-2 rounded-xl border border-border bg-background shadow-sm p-5">
-      <h2 className={`font-semibold ${tone === "alert" && count ? "text-red-700" : ""}`}>{title} ({count})</h2>
-      {count === 0 ? <p className="text-sm text-muted-foreground">Nada por aquí.</p> : children}
+    <section className={`space-y-2 rounded-xl border bg-background p-5 shadow-sm ${tone === "alert" ? "border-red-200 border-l-4 border-l-red-500" : "border-border"}`}>
+      <h2 className={`flex items-center gap-2 font-semibold ${tone === "alert" ? "text-red-700" : ""}`}>
+        {title} <span className="rounded-full bg-muted px-2 text-xs font-bold text-foreground">{count}</span>
+      </h2>
+      {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
+      {children}
     </section>
   );
 }
@@ -57,26 +67,47 @@ export default async function MyDayPage() {
   const people = new Map([[me.id, "Yo"]]);
   const where = (a: ActivityRow) =>
     a.institution_id ? <> · <Link href={a.opportunity_id ? `/oportunidades/${a.opportunity_id}` : `/instituciones/${a.institution_id}`} className="underline">{instName.get(a.institution_id)}</Link></> : null;
+  const idle = idleOpps.data ?? [];
+  const late = lateOpps.data ?? [];
+  const nothing = !reminders.length && !overdue.length && !todays.length && !idle.length && !late.length && !prospects.length && !upcoming.length && !undated.length && !completed.length;
   const list = (items: ActivityRow[]) => (
     <ul className="divide-y divide-border">{items.map((a) => <ActivityItem key={a.id} a={a} timeZone={tz} people={people} canAct context={where(a)} />)}</ul>
   );
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="on-band page-header">
-        <h1 className="text-2xl font-semibold tracking-tight">Mi día</h1>
-        <p className="text-sm text-muted-foreground">
-          {new Intl.DateTimeFormat("es-MX", { timeZone: tz, dateStyle: "full" }).format(now)} · {todays.length} para hoy · {overdue.length} vencidas
-        </p>
+      <div className="on-band page-header space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Mi día</h1>
+            <p className="text-sm text-muted-foreground first-letter:uppercase">{new Intl.DateTimeFormat("es-MX", { timeZone: tz, dateStyle: "full" }).format(now)}</p>
+          </div>
+          <Link href="/calendario" className={buttonVariants({ variant: "outline" })}>Ver mi semana</Link>
+        </div>
+        <div className="on-light grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile label="Vencidas" value={overdue.length} tone={overdue.length ? "alert" : "default"} hint={overdue.length ? "Atiéndelas primero" : "Ninguna"} />
+          <StatTile label="Para hoy" value={todays.length} />
+          <StatTile label="Sin próxima actividad" value={idle.length} tone={idle.length ? "warn" : "default"} hint="Oportunidades abiertas" />
+          <StatTile label="Hechas hoy" value={completed.length} tone={completed.length ? "good" : "default"} />
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <Reveal label="Nueva tarea" title="Tarea interna o actividad sin institución" variant="outline"><NewActivityForm /></Reveal>
+
+      {nothing && (
+        <EmptyState icon={CalendarCheck} title="Todo al día"
+          action={<Link href="/instituciones" className={buttonVariants()}>Ir a mis instituciones</Link>}>
+          No tienes tareas pendientes ni oportunidades sin seguimiento. Programa la siguiente llamada o visita desde la ficha de una institución u oportunidad y aparecerá aquí el día que toque.
+        </EmptyState>
+      )}
+
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         {reminders.length > 0 && <Block title="Recordatorios" count={reminders.length} tone="alert">{list(reminders)}</Block>}
         <Block title="Vencidas" count={overdue.length} tone="alert">{list(overdue)}</Block>
         <Block title="Hoy" count={todays.length}>{list(todays)}</Block>
-        <Block title="Oportunidades sin próxima actividad" count={idleOpps.data?.length ?? 0} tone="alert">
+        <Block title="Oportunidades sin próxima actividad" count={idle.length} tone="alert" hint="Abre cada una y programa la siguiente llamada o visita.">
           <ul className="divide-y divide-border text-sm">
-            {(idleOpps.data ?? []).map((o) => (
+            {idle.map((o) => (
               <li key={o.id} className="flex justify-between gap-2 py-2">
                 <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
                 <span className="text-muted-foreground">{instName.get(o.institution_id)} · {formatMoney(o.amount, o.currency_code)}</span>
@@ -84,10 +115,9 @@ export default async function MyDayPage() {
             ))}
           </ul>
         </Block>
-        <Block title="Cierre estimado ya pasó" count={lateOpps.data?.length ?? 0} tone="alert">
-          <p className="text-sm text-muted-foreground">Actualiza la fecha de cierre, avanza la etapa o márcala como perdida.</p>
+        <Block title="Cierre estimado ya pasó" count={late.length} tone="alert" hint="Actualiza la fecha de cierre, avanza la etapa o márcala como perdida.">
           <ul className="divide-y divide-border text-sm">
-            {(lateOpps.data ?? []).map((o) => (
+            {late.map((o) => (
               <li key={o.id} className="flex justify-between gap-2 py-2">
                 <Link href={`/oportunidades/${o.id}`} className="font-medium hover:underline">{o.name}</Link>
                 <span className="text-muted-foreground">{instName.get(o.institution_id)} · cierre {formatDay(o.expected_close_date!)}</span>
@@ -95,15 +125,14 @@ export default async function MyDayPage() {
             ))}
           </ul>
         </Block>
-        <Block title="Instituciones para abrir oportunidad" count={prospects.length}>
-          <p className="text-sm text-muted-foreground">Tus instituciones sin oportunidad abierta con mejor puntaje.</p>
+        <Block title="Instituciones para abrir oportunidad" count={prospects.length} hint="Tus instituciones sin oportunidad abierta con mejor puntaje.">
           <ul className="divide-y divide-border text-sm">
             {prospects.map((i) => (
-              <li key={i.id} className="flex justify-between gap-2 py-2">
+              <li key={i.id} className="flex items-center justify-between gap-2 py-2">
                 <Link href={`/instituciones/${i.id}`} className="font-medium hover:underline">{i.name}</Link>
                 <span className="flex gap-3">
                   <span className="text-muted-foreground tabular-nums">Puntaje {i.s?.score ?? "—"}</span>
-                  <Link href={`/oportunidades/nueva?institucion=${i.id}`} className="underline">Crear oportunidad</Link>
+                  <Link href={`/oportunidades/nueva?institucion=${i.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>Crear oportunidad</Link>
                 </span>
               </li>
             ))}
@@ -113,11 +142,6 @@ export default async function MyDayPage() {
         <Block title="Sin fecha" count={undated.length}>{list(undated)}</Block>
         <Block title="Completadas hoy" count={completed.length}>{list(completed)}</Block>
       </div>
-
-      <details className="rounded-xl border border-border bg-background shadow-sm p-5">
-        <summary className="cursor-pointer font-semibold">Tarea interna o actividad sin institución</summary>
-        <div className="mt-3"><NewActivityForm /></div>
-      </details>
     </div>
   );
 }
