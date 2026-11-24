@@ -19,6 +19,8 @@ UUID como PK; `created_at`, `updated_at`; `organization_id` para aislamiento; so
 - contacts(id, organization_id, first_name, last_name, email, phone, preferred_language, consent_status)
 - institution_contacts(id, institution_id, contact_id, job_title, department, decision_role, is_primary)
 - products(id, organization_id, company_id, business_unit_id, supplier_id, code, name, description, revenue_model, default_pipeline_id, active). Un registro sin supplier_id es un **proveedor** (tiene el pipeline); con supplier_id es un producto de ese proveedor (sin pipeline, un solo nivel). Las líneas de oportunidad usan productos del proveedor de su pipeline.
+  El proveedor guarda además legal_name, tax_id, website, phone, email, address, city, state, postal_code, country y logo_path (bucket privado `logos`, PNG/JPG/WebP ≤ 2 MB, se muestra con URL firmada). Sus ventas se calculan de las oportunidades de su pipeline.
+- supplier_contacts(id, organization_id, supplier_id, name, job_title, email, phone, notes, is_primary). Personas de enlace del proveedor; un solo principal. Las ve toda la organización; las cambia catalog.manage.
 - price_books(id, product_id, name, currency_code, valid_from, valid_to, version)
 - price_book_items(id, price_book_id, unit_price, unit_cost, unit_name)
 - pipelines(id, organization_id, name, product_id, business_unit_id, active)

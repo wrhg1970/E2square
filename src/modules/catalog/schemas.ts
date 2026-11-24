@@ -40,3 +40,38 @@ export const stageSchema = z
 // Los requisitos llegan como varios checkboxes con el mismo nombre.
 export const requirementsFrom = (formData: FormData) =>
   formData.getAll("required_fields").map(String).filter((k) => k in stageRequirements);
+
+const email = z.preprocess((v) => (typeof v === "string" ? v.trim().toLowerCase() || null : v), z.email("Correo no válido").max(200).nullable().optional());
+
+// Datos generales y dirección del proveedor.
+export const supplierProfileSchema = z.object({
+  legal_name: text(200),
+  tax_id: text(30),
+  website: text(300),
+  phone: text(40),
+  email,
+  address: text(300),
+  city: text(100),
+  state: text(100),
+  postal_code: text(20),
+  country: text(100),
+});
+
+export const supplierContactSchema = z.object({
+  name: z.string().trim().min(2, "Escribe el nombre").max(200),
+  job_title: text(120),
+  email,
+  phone: text(40),
+  notes: text(1000),
+  is_primary: checkbox,
+});
+
+// Logo: imagen ligera (deben coincidir con el bucket "logos"). Sin SVG: puede llevar scripts.
+export const LOGO_MIME = ["image/png", "image/jpeg", "image/webp"] as const;
+export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+export function validateLogo(file: { size: number; type: string }): string | null {
+  if (!file.size) return "Elige una imagen.";
+  if (file.size > MAX_LOGO_BYTES) return "El logo pesa más de 2 MB.";
+  if (!(LOGO_MIME as readonly string[]).includes(file.type)) return "Usa una imagen PNG, JPG o WebP.";
+  return null;
+}
