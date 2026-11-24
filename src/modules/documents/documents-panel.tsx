@@ -1,5 +1,5 @@
 import { ActionForm } from "@/components/ui/action-form";
-import { SelectField } from "@/components/ui/field";
+import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { deleteDocument, uploadDocument } from "./actions";
 import { ACCEPT_ATTR, documentCategories, formatSize } from "./rules";
@@ -78,6 +78,7 @@ export async function DocumentsPanel({ institutionId, opportunityId, productId, 
             <input type="file" name="file" accept={ACCEPT_ATTR} required className="max-w-full text-sm text-muted-foreground file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted" />
           </label>
           <SelectField label="Categoría" name="category" defaultValue="proposal" options={Object.entries(documentCategories).map(([value, label]) => ({ value, label }))} />
+          <Field label="Vence el (opcional)" name="expires_on" type="date" />
         </ActionForm>
       )}
     </div>
