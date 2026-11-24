@@ -35,3 +35,17 @@ export function parseAiSpec(text: string): QuerySpec | { error: string } {
   const r = querySpec.safeParse(raw);
   return r.success ? r.data : { error: "No pude convertir la pregunta en una consulta válida. Usa el formulario de abajo." };
 }
+
+// Botones rápidos de periodo a partir de hoy (AAAA-MM-DD en la zona del usuario).
+export function quickRanges(today: string) {
+  const [y, m] = today.split("-").map(Number);
+  const day = (yy: number, mm: number, dd: number) => new Date(Date.UTC(yy, mm - 1, dd)).toISOString().slice(0, 10);
+  const q = Math.floor((m - 1) / 3) * 3 + 1;
+  return [
+    { label: "Este mes", from: day(y, m, 1), to: today },
+    { label: "Mes pasado", from: day(y, m - 1, 1), to: day(y, m, 0) },
+    { label: "Este trimestre", from: day(y, q, 1), to: today },
+    { label: "Este año", from: day(y, 1, 1), to: today },
+    { label: "Año pasado", from: day(y - 1, 1, 1), to: day(y - 1, 12, 31) },
+  ];
+}
