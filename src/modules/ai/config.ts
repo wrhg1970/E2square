@@ -16,3 +16,8 @@ export function aiEnv(env: Record<string, string | undefined> = process.env): Ai
 
 export const DEFAULT_MODELS = { anthropic: "claude-opus-5-5", gemini: "gemini-2.5-flash" } as const;
 export const providerLabel = { anthropic: "Claude (Anthropic)", gemini: "Gemini (Google)" } as const;
+
+// Haiku no admite la búsqueda web con filtrado dinámico (20260209); usa la versión básica.
+export function webSearchType(model: string) {
+  return model.startsWith("claude-haiku") ? ("web_search_20250305" as const) : ("web_search_20260209" as const);
+}
