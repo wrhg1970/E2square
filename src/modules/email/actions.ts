@@ -56,7 +56,7 @@ export async function sendEmail(_prev: ActionState, formData: FormData): Promise
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const env = googleEnv();
   if (!env) return { error: "El envío desde el CRM aún no está activo. Usa «Abrir en Gmail»." };
-  const { to, subject, body, institution_id, contact_id } = parsed.data;
+  const { to, subject, body, institution_id, contact_id, template_id } = parsed.data;
   const supabase = await createClient();
   try {
     const g = await googleClient(env, supabase);
@@ -64,11 +64,15 @@ export async function sendEmail(_prev: ActionState, formData: FormData): Promise
     const sent = await g.sendMessage(buildRawEmail(to, subject, body));
     const [{ data: org }, { data: me }] = await Promise.all([supabase.rpc("current_org_id"), supabase.rpc("current_profile_id")]);
     // Si falla el registro el correo ya salió; la siguiente sincronización de Gmail lo vuelve a traer.
-    await supabase.from("communications").insert({
+    const row = {
       organization_id: org, owner_id: me, channel: "email", direction: "outbound", external_id: sent.id, thread_id: sent.threadId,
       subject: subject.slice(0, 500), snippet: body.slice(0, 500), from_email: g.conn.google_email, to_emails: [to],
-      sent_at: new Date().toISOString(), contact_id, institution_id,
-    });
+      sent_at: new Date().toISOString(), contact_id, institution_id, status: "sent",
+    };
+    const { error } = await supabase.from("communications").insert({ ...row, sent_from_crm: true, template_id });
+    // shortcut: sin la migración 20261218 se guarda sin plantilla; quitar cuando esté aplicada en todos lados.
+    if (error) await supabase.from("communications").insert(row);
+    revalidatePath("/correos");
     if (institution_id) revalidatePath(`/instituciones/${institution_id}`);
     return { success: `Enviado a ${to} desde ${g.conn.google_email}.` };
   } catch (e) {

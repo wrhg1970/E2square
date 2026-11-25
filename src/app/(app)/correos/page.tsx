@@ -38,7 +38,7 @@ function TemplateFields({ t }: { t?: Template }) {
 
 export default async function EmailPage({ searchParams }: PageProps<"/correos">) {
   const sp = await searchParams;
-  const view = sp.ver === "redactar" ? "redactar" : "plantillas";
+  const view = sp.ver === "redactar" || sp.ver === "historial" ? sp.ver : "plantillas";
   const q = str(sp.q);
   const category = str(sp.categoria) in templateCategories ? str(sp.categoria) : "";
   const supabase = await createClient();
@@ -54,6 +54,7 @@ export default async function EmailPage({ searchParams }: PageProps<"/correos">)
     <Segmented label="Sección" items={[
       { href: "/correos", label: `Plantillas (${templates.length})`, current: view === "plantillas" },
       { href: "/correos?ver=redactar", label: "Redactar", current: view === "redactar" },
+      { href: "/correos?ver=historial", label: "Historial de envíos", current: view === "historial" },
     ]} />
   );
   const newForm = (
@@ -72,6 +73,8 @@ export default async function EmailPage({ searchParams }: PageProps<"/correos">)
 
       {error ? (
         <p role="alert" className="text-sm text-red-700">No se pudieron cargar las plantillas. Recarga la página.</p>
+      ) : view === "historial" ? (
+        <History q={q} onlyCrm={sp.origen === "crm"} templates={templates} />
       ) : view === "redactar" ? (
         <Compose sp={sp} templates={templates} />
       ) : !templates.length ? (
@@ -228,7 +231,7 @@ async function Compose({ sp, templates }: { sp: Record<string, string | string[]
         {!institution && template && <p className="text-sm text-muted-foreground">Elige la institución para llenar las variables.</p>}
         <ComposeForm key={`${template?.id}-${institution?.id}-${contact?.id}`}
           to={contact?.email ?? institution?.email ?? ""} subject={subject?.text ?? ""} body={body?.text ?? ""}
-          institutionId={institution?.id} contactId={contact?.id} canSend={canSend} />
+          institutionId={institution?.id} contactId={contact?.id} templateId={template?.id} canSend={canSend} />
         <p className="text-xs text-muted-foreground">
           {canSend
             ? `Se envía desde ${conn?.google_email} y queda registrado en la ficha de la institución.`
@@ -236,5 +239,97 @@ async function Compose({ sp, templates }: { sp: Record<string, string | string[]
         </p>
       </section>
     </div>
+  );
+}
+
+const PAGE = 200;
+
+async function History({ q, onlyCrm, templates }: { q: string; onlyCrm: boolean; templates: Template[] }) {
+  const supabase = await createClient();
+  const base = "id, subject, to_emails, from_email, sent_at, status, error, owner_id, institution_id";
+  const query = (cols: string) => {
+    let r = supabase.from("communications").select(cols).eq("channel", "email").eq("direction", "outbound")
+      .order("sent_at", { ascending: false }).limit(PAGE);
+    if (onlyCrm && cols !== base) r = r.eq("sent_from_crm", true);
+    // Comas y paréntesis romperían el filtro or() de PostgREST.
+    const needle = q.replace(/[,()*%]/g, " ").trim();
+    if (needle) r = r.or(`subject.ilike.*${needle}*,from_email.ilike.*${needle}*`);
+    return r;
+  };
+  let { data, error } = await query(`${base}, sent_from_crm, template_id`);
+  // Sin la migración 20261218 todavía: muestra el historial sin plantilla ni origen.
+  if (error) ({ data, error } = await query(base));
+  type Row = { id: string; subject: string | null; to_emails: string[]; from_email: string | null; sent_at: string; status: string | null; error: string | null;
+    owner_id: string; institution_id: string | null; sent_from_crm?: boolean; template_id?: string | null };
+  const rows = (data ?? []) as unknown as Row[];
+  const instIds = [...new Set(rows.map((r) => r.institution_id).filter(Boolean))] as string[];
+  const ownerIds = [...new Set(rows.map((r) => r.owner_id))];
+  const [{ data: insts }, { data: people }] = await Promise.all([
+    instIds.length ? supabase.from("institutions").select("id, name").in("id", instIds) : Promise.resolve({ data: [] }),
+    ownerIds.length ? supabase.from("profiles").select("id, full_name, email").in("id", ownerIds) : Promise.resolve({ data: [] }),
+  ]);
+  const instName = new Map((insts ?? []).map((i) => [i.id, i.name]));
+  const person = new Map((people ?? []).map((p) => [p.id, p.full_name || p.email]));
+  const templateName = new Map(templates.map((t) => [t.id, t.title]));
+  const fmt = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Mexico_City" });
+
+  return (
+    <>
+      <AutoForm role="search" className="flex flex-wrap items-end gap-3">
+        <input type="hidden" name="ver" value="historial" />
+        <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm">
+          <span className="font-medium">Buscar</span>
+          <span className="relative">
+            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input name="q" defaultValue={q} placeholder="Asunto o remitente · Enter para buscar"
+              className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm shadow-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" />
+          </span>
+        </label>
+        <SelectField label="Origen" name="origen" defaultValue={onlyCrm ? "crm" : ""} className="w-52"
+          options={[{ value: "", label: "Todos los enviados" }, { value: "crm", label: "Solo desde el CRM" }]} />
+      </AutoForm>
+      {error ? (
+        <p role="alert" className="text-sm text-red-700">No se pudo cargar el historial. Recarga la página.</p>
+      ) : rows.length === 0 ? (
+        q || onlyCrm ? (
+          <p className="text-sm text-muted-foreground">Ningún envío coincide. <Link href="/correos?ver=historial" className="underline">Ver todos</Link></p>
+        ) : (
+          <EmptyState icon={Send} title="Todavía no hay envíos"
+            action={<Link href="/correos?ver=redactar" className={buttonVariants()}>Redactar un correo</Link>}>
+            Aquí aparecen los correos que envías con «Enviar desde mi Gmail» y los que mandas desde Gmail a contactos del CRM al sincronizar.
+          </EmptyState>
+        )
+      ) : (
+        <div className="table-card">
+          <table className="w-full text-left text-sm">
+            <thead className="text-muted-foreground">
+              <tr>{["Fecha", "Para", "Institución", "Asunto", "Plantilla", "Envió", "Estado"].map((h) => <th key={h} className="py-2 pr-4 font-medium">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-t border-border align-top">
+                  <td className="whitespace-nowrap py-2 pr-4 tabular-nums">{fmt.format(new Date(r.sent_at))}</td>
+                  <td className="py-2 pr-4 break-all">{r.to_emails.join(", ")}</td>
+                  <td className="py-2 pr-4">
+                    {r.institution_id && instName.get(r.institution_id)
+                      ? <Link href={`/instituciones/${r.institution_id}`} className="hover:underline">{instName.get(r.institution_id)}</Link>
+                      : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="py-2 pr-4">{r.subject || <span className="text-muted-foreground">(sin asunto)</span>}</td>
+                  <td className="py-2 pr-4">{(r.template_id && templateName.get(r.template_id)) || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="py-2 pr-4">{person.get(r.owner_id) ?? r.from_email}</td>
+                  <td className="py-2 pr-4">
+                    {r.status === "failed" ? <Pill tone="red">Falló</Pill>
+                      : <Pill tone={r.sent_from_crm ? "teal" : "slate"}>{r.sent_from_crm ? "Enviado desde el CRM" : "Enviado desde Gmail"}</Pill>}
+                    {r.error && <p className="mt-1 text-xs text-red-700">{r.error}</p>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {rows.length === PAGE && <p className="text-xs text-muted-foreground">Se muestran los {PAGE} envíos más recientes. Usa el buscador para encontrar otros.</p>}
+    </>
   );
 }

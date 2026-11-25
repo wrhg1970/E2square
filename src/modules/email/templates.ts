@@ -23,6 +23,7 @@ export const sendSchema = z.object({
   body: z.string().trim().min(1, "Falta el texto").max(20000),
   institution_id: z.preprocess((v) => v || null, z.uuid().nullable()),
   contact_id: z.preprocess((v) => v || null, z.uuid().nullable()),
+  template_id: z.preprocess((v) => v || null, z.uuid().nullable()),
 });
 
 // Variables disponibles; las de la derecha son sinónimos que también se aceptan.

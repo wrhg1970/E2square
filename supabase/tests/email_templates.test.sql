@@ -1,7 +1,7 @@
 -- Plantillas de correo: iniciales por organización, aislamiento y quién edita.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(12);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 select public.bootstrap_organization('Org B', 'org-b', 'admin-b@test.dev');
@@ -44,6 +44,19 @@ select is((select count(*)::int from public.email_templates where category = 'cu
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true);
 select is((select count(*)::int from public.email_templates where category = 'customer'), 1, 'la otra organización conserva las suyas');
+
+-- Historial: el envío guarda la plantilla; si la plantilla se borra, el envío se conserva sin ella.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+insert into public.communications (organization_id, owner_id, channel, direction, external_id, subject, from_email, to_emails, sent_at, status, sent_from_crm, template_id)
+select public.current_org_id(), public.current_profile_id(), 'email', 'outbound', 'gm-1', 'Propuesta', 'rep1@test.dev', array['ana@uno.mx'], now(), 'sent', true, id
+from public.email_templates where category = 'proposal' and created_by is null;
+select is((select count(*)::int from public.communications where sent_from_crm and template_id is not null), 1, 'el envío queda con su plantilla');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
+select is((select count(*)::int from public.communications), 0, 'otro vendedor no ve envíos ajenos sin institución');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
+delete from public.email_templates where category = 'proposal' and created_by is null;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+select is((select template_id from public.communications where external_id = 'gm-1'), null::uuid, 'borrar la plantilla no borra el envío');
 
 select * from finish();
 rollback;

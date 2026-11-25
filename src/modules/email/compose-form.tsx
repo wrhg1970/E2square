@@ -8,8 +8,8 @@ import { sendEmail } from "./actions";
 import { gmailComposeUrl } from "./templates";
 
 // Correo ya llenado y editable: se abre en Gmail o se copia; si Gmail está conectado, también se envía desde aquí.
-export function ComposeForm({ to: to0, subject: subject0, body: body0, institutionId, contactId, canSend }: {
-  to: string; subject: string; body: string; institutionId?: string; contactId?: string; canSend: boolean;
+export function ComposeForm({ to: to0, subject: subject0, body: body0, institutionId, contactId, templateId, canSend }: {
+  to: string; subject: string; body: string; institutionId?: string; contactId?: string; templateId?: string; canSend: boolean;
 }) {
   const [to, setTo] = useState(to0);
   const [subject, setSubject] = useState(subject0);
@@ -30,6 +30,7 @@ export function ComposeForm({ to: to0, subject: subject0, body: body0, instituti
     <form action={action} className="space-y-3">
       <input type="hidden" name="institution_id" value={institutionId ?? ""} />
       <input type="hidden" name="contact_id" value={contactId ?? ""} />
+      <input type="hidden" name="template_id" value={templateId ?? ""} />
       <Field label="Para" name="to" type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="correo@colegio.edu.mx" required />
       <Field label="Asunto" name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
       <TextareaField label="Mensaje" name="body" value={body} onChange={(e) => setBody(e.target.value)} rows={14} required />
