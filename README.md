@@ -118,7 +118,7 @@ La licencia de Gemini en Google Workspace no da acceso para aplicaciones: se nec
 2. En Vercel › e2square › Settings › Environment Variables agrega, para Production y Preview:
    - `AI_PROVIDER` = `gemini` (o `anthropic`)
    - `GEMINI_API_KEY` (o `ANTHROPIC_API_KEY`) = la clave
-   - Opcional: `AI_MODEL` para usar otro modelo (por defecto `gemini-2.5-flash` o `claude-opus-5-5`).
+   - Opcional: `AI_MODEL` para usar otro modelo (por defecto `gemini-3.8-flash` o `claude-opus-5-5`).
 3. Vuelve a desplegar (Deployments › Redeploy). En Integraciones debe decir "Activa".
 
 Cambiar de proveedor es cambiar esas variables; no hay que tocar código. La IA solo recibe los datos de la oportunidad que el usuario ya puede ver, se ejecuta cuando alguien la pide y no guarda nada. Cada consulta tiene un costo pequeño por uso con el proveedor.

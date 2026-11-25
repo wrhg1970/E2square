@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { automationSchema, companySchema, invitationSchema, officeSchema } from "./schemas";
+import { automationSchema, stageAutomationSchema, companySchema, invitationSchema, officeSchema } from "./schemas";
 
 const uuid = "3f1c2a8e-9b7d-4c1e-8a2b-1d2e3f4a5b6c";
 
@@ -33,5 +33,21 @@ describe("automationSchema", () => {
     expect(automationSchema.parse({ key: "won_handoff", days: "0" }).enabled).toBe(false);
     expect(automationSchema.safeParse({ key: "first_contact", days: "91" }).success).toBe(false);
     expect(automationSchema.safeParse({ key: "otra", days: "1" }).success).toBe(false);
+  });
+});
+
+describe("stageAutomationSchema", () => {
+  const base = { id: "", stage_id: uuid, activity_type: "follow_up", subject: "  Seguimiento a propuesta ", days: "3" };
+  it("alta: sin id, recorta el asunto y lee la casilla", () => {
+    expect(stageAutomationSchema.parse({ ...base, enabled: "on" })).toEqual({
+      id: undefined, stage_id: uuid, activity_type: "follow_up", subject: "Seguimiento a propuesta", days: 3, enabled: true,
+    });
+    expect(stageAutomationSchema.parse(base).enabled).toBe(false);
+  });
+  it("exige etapa, tipo válido, asunto y días entre 0 y 90", () => {
+    expect(stageAutomationSchema.safeParse({ ...base, stage_id: "" }).success).toBe(false);
+    expect(stageAutomationSchema.safeParse({ ...base, activity_type: "sms" }).success).toBe(false);
+    expect(stageAutomationSchema.safeParse({ ...base, subject: " " }).success).toBe(false);
+    expect(stageAutomationSchema.safeParse({ ...base, days: "91" }).success).toBe(false);
   });
 });
