@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { aiEnv, DEFAULT_MODELS } from "./config";
+import { aiEnv, DEFAULT_MODELS, webSearchType } from "./config";
 
 export type AiResult = { text: string } | { error: string };
 
@@ -33,7 +33,7 @@ async function claude(apiKey: string, model: string, system: string, prompt: str
     // Si el modelo declina por seguridad, el API reintenta con el modelo de respaldo por defecto.
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
-    ...(webSearch ? { tools: [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: 4 }] } : {}),
+    ...(webSearch ? { tools: [{ type: webSearchType(model), name: "web_search" as const, max_uses: 4 }] } : {}),
     messages,
   });
   let res = await call();

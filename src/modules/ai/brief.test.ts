@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { aiEnv } from "./config";
+import { aiEnv, webSearchType } from "./config";
 import { opportunityBrief } from "./brief";
+
+describe("webSearchType", () => {
+  it("Haiku usa la búsqueda web básica; Opus y Sonnet la de filtrado dinámico", () => {
+    expect(webSearchType("claude-haiku-5-5")).toBe("web_search_20250305");
+    expect(webSearchType("claude-sonnet-5-5")).toBe("web_search_20260209");
+  });
+});
 
 describe("aiEnv", () => {
   it("queda apagada sin proveedor o sin clave", () => {
