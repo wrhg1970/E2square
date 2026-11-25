@@ -13,10 +13,10 @@ import { addDays, dayIn, formatDateTime } from "./time";
 export type ActivityRow = {
   id: string; activity_type: string; subject: string; status: string; due_at: string | null; completed_at: string | null;
   outcome: string | null; notes: string | null; priority: string; owner_id: string; institution_id: string | null; opportunity_id: string | null;
-  google_event_id: string | null; reminder_at: string | null;
+  google_event_id: string | null; reminder_at: string | null; created_by: string | null;
 };
 
-export const ACTIVITY_COLUMNS = "id, activity_type, subject, status, due_at, completed_at, outcome, notes, priority, owner_id, institution_id, opportunity_id, google_event_id, reminder_at";
+export const ACTIVITY_COLUMNS = "id, activity_type, subject, status, due_at, completed_at, outcome, notes, priority, owner_id, institution_id, opportunity_id, google_event_id, reminder_at, created_by";
 
 const typeIcon: Record<string, LucideIcon> = {
   call: Phone, email: Mail, whatsapp: MessageCircle, visit: MapPin, meeting: Users, video_call: Video,
@@ -77,6 +77,7 @@ function When({ a, timeZone }: { a: ActivityRow; timeZone: string }) {
 export function ActivityItem({ a, timeZone, people, canAct, context }: { a: ActivityRow; timeZone: string; people: Map<string, string>; canAct: boolean; context?: React.ReactNode }) {
   const Icon = typeIcon[a.activity_type] ?? ClipboardList;
   const owner = shortName(people.get(a.owner_id));
+  const assignedBy = a.created_by && a.created_by !== a.owner_id ? shortName(people.get(a.created_by)) : undefined;
   return (
     <li className="flex gap-3 py-4 text-sm first:pt-0 last:pb-0">
       <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${a.status === "pending" ? "bg-primary/15 text-teal-800" : "bg-muted text-muted-foreground"}`}>
@@ -90,7 +91,8 @@ export function ActivityItem({ a, timeZone, people, canAct, context }: { a: Acti
         </p>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
           <When a={a} timeZone={timeZone} />
-          {owner && <span className="inline-flex items-center gap-1"><User className="size-3.5" aria-hidden />{owner}</span>}
+          {owner && <span className="inline-flex items-center gap-1"><User className="size-3.5" aria-hidden />{assignedBy ? `Responsable: ${owner}` : owner}</span>}
+          {assignedBy && <span>Asignó: {assignedBy}</span>}
           {a.google_event_id && <span className="inline-flex items-center gap-1 text-xs"><CalendarCheck className="size-3.5 text-primary" aria-hidden />En Google Calendar</span>}
           {context && <span>{context}</span>}
         </p>
@@ -113,13 +115,18 @@ export function ActivityItem({ a, timeZone, people, canAct, context }: { a: Acti
 }
 
 // Nueva actividad ligada a una institución u oportunidad. "Ya se realizó" = captura rápida.
-export function NewActivityForm({ institutionId, opportunityId, contacts = [] }: { institutionId?: string; opportunityId?: string; contacts?: { value: string; label: string }[] }) {
+// Con `assignees` aparece "Responsable" para asignarla a otra persona (vacío = yo).
+export function NewActivityForm({ institutionId, opportunityId, contacts = [], assignees, defaultType = "call", submitLabel = "Guardar actividad" }: {
+  institutionId?: string; opportunityId?: string; contacts?: { value: string; label: string }[];
+  assignees?: { value: string; label: string }[]; defaultType?: keyof typeof activityTypes; submitLabel?: string;
+}) {
   return (
-    <ActionForm action={createActivity} submitLabel="Guardar actividad" className="grid gap-3 sm:grid-cols-3 sm:items-end">
+    <ActionForm action={createActivity} submitLabel={submitLabel} className="grid gap-3 sm:grid-cols-3 sm:items-end">
       {institutionId && <input type="hidden" name="institution_id" value={institutionId} />}
       {opportunityId && <input type="hidden" name="opportunity_id" value={opportunityId} />}
-      <SelectField label="Tipo" name="activity_type" options={toOptions(activityTypes)} defaultValue="call" />
+      <SelectField label="Tipo" name="activity_type" options={toOptions(activityTypes)} defaultValue={defaultType} />
       <Field label="Asunto" name="subject" required className="sm:col-span-2" />
+      {assignees && <SelectField label="Responsable" name="owner_id" options={[{ value: "", label: "Yo" }, ...assignees]} defaultValue="" />}
       <Field label="Fecha y hora" name="due_local" type="datetime-local" />
       <SelectField label="Recordatorio" name="reminder" defaultValue="" options={[
         { value: "", label: "Sin recordatorio" }, { value: "0", label: "A la hora" }, { value: "15", label: "15 min antes" },

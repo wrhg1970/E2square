@@ -14,6 +14,8 @@ export const activitySchema = z.object({
   institution_id: opt(z.uuid()),
   opportunity_id: opt(z.uuid()),
   contact_id: opt(z.uuid()),
+  // Responsable; vacío = quien la crea.
+  owner_id: opt(z.uuid("Elige un responsable válido")),
   notes: opt(z.string().trim().max(5000)),
   done: z.preprocess((v) => v === "on" || v === true, z.boolean()),
   outcome: opt(z.string().trim().max(500)),

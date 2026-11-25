@@ -12,3 +12,14 @@ describe("activitySchema recordatorio", () => {
     expect(activitySchema.safeParse({ ...base, reminder: "5" }).success).toBe(false);
   });
 });
+
+describe("activitySchema responsable", () => {
+  it("vacío = yo; uuid válido = asignar", () => {
+    expect(activitySchema.parse({ ...base, owner_id: "" }).owner_id).toBeNull();
+    const id = "6f1c1e8e-3b2a-4c2d-9e7f-1a2b3c4d5e6f";
+    expect(activitySchema.parse({ ...base, owner_id: id }).owner_id).toBe(id);
+  });
+  it("rechaza un responsable que no es uuid", () => {
+    expect(activitySchema.safeParse({ ...base, owner_id: "ana" }).success).toBe(false);
+  });
+});
