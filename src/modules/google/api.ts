@@ -56,6 +56,14 @@ export async function googleClient(env: GoogleEnv, supabase: SupabaseClient) {
       call<GmailMessage>(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date`),
     sendMessage: (raw: string) =>
       call<{ id: string; threadId: string }>("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", { method: "POST", body: JSON.stringify({ raw }) }),
+    // Pestañas de una hoja: para encontrar el nombre de la pestaña a partir del gid de la liga.
+    sheetTabs: (id: string) =>
+      call<{ sheets?: { properties: { sheetId: number; title: string } }[] }>(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=sheets.properties(sheetId,title)`)
+        .then((r) => (r.sheets ?? []).map((s) => s.properties)),
+    // Valores tal como se ven en la hoja (fechas y números con su formato).
+    sheetValues: (id: string, tab: string) =>
+      call<{ values?: string[][] }>(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${encodeURIComponent(`'${tab.replace(/'/g, "''")}'`)}?valueRenderOption=FORMATTED_VALUE`)
+        .then((r) => r.values ?? []),
     createEvent: (event: Record<string, unknown>) =>
       call<{ id: string; htmlLink: string }>("https://www.googleapis.com/calendar/v3/calendars/primary/events", { method: "POST", body: JSON.stringify(event) }),
   };

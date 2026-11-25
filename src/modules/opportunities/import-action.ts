@@ -3,12 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { dbErrorMessage } from "@/lib/action-state";
-import { readRows } from "@/modules/import/read-rows";
+import { readImportInput } from "@/modules/import/read-rows";
 import { normalizeText } from "@/modules/institutions/labels";
 import type { ImportResult } from "@/modules/institutions/import-action";
 import { parseOpportunityRows } from "./import-parse";
 
-const MAX_BYTES = 5 * 1024 * 1024;
 // shortcut: una llamada a import_opportunity por fila; con más de 1000 filas conviene una función por lote.
 const MAX_ROWS = 1000;
 
@@ -24,11 +23,7 @@ function index<T extends Named>(items: T[], extra: (t: T) => string[] = () => []
 }
 
 export async function importOpportunities(_prev: ImportResult, formData: FormData): Promise<ImportResult> {
-  const file = formData.get("file");
   const mode = formData.get("mode") === "commit" ? "commit" : "preview";
-  if (!(file instanceof File) || file.size === 0) return { error: "Elige un archivo .xlsx o .csv." };
-  if (!/\.(xlsx|csv)$/i.test(file.name)) return { error: "Formato no soportado. Usa .xlsx o .csv." };
-  if (file.size > MAX_BYTES) return { error: "El archivo pesa más de 5 MB. Divídelo en partes." };
 
   const supabase = await createClient();
   const [{ data: canImport }, { data: orgId }, { data: profileId }] = await Promise.all([
@@ -38,15 +33,12 @@ export async function importOpportunities(_prev: ImportResult, formData: FormDat
   ]);
   if (!canImport || !orgId || !profileId) return { error: "No tienes permiso para importar." };
 
-  let rows: string[][];
-  try {
-    rows = await readRows(file);
-  } catch {
-    return { error: "No se pudo leer el archivo. Revisa que sea un Excel (.xlsx) o CSV válido." };
-  }
-  if (rows.length - 1 > MAX_ROWS) return { error: `El archivo tiene más de ${MAX_ROWS} filas. Divídelo en partes.` };
+  const input = await readImportInput(formData, supabase);
+  if ("error" in input) return input;
+  const { rows, name: fileName } = input;
+  if (rows.length - 1 > MAX_ROWS) return { error: `Hay más de ${MAX_ROWS} filas. Divide los datos en partes.` };
   const { valid, errors, unknownColumns } = parseOpportunityRows(rows);
-  if (!rows[0]?.length || valid.length + errors.length === 0) return { error: "El archivo no tiene filas de datos." };
+  if (!rows[0]?.length || valid.length + errors.length === 0) return { error: "No hay filas de datos." };
   const total = valid.length + new Set(errors.map((e) => e.row)).size;
 
   // Instituciones visibles (paginado: PostgREST devuelve máximo 1000 por consulta).
@@ -122,7 +114,7 @@ export async function importOpportunities(_prev: ImportResult, formData: FormDat
     await supabase.from("import_runs").insert({
       organization_id: orgId,
       entity: "opportunities",
-      file_name: file.name.slice(0, 200),
+      file_name: fileName.slice(0, 200),
       total_rows: total,
       created_rows: created,
       skipped_rows: duplicates.length + badRows,
@@ -134,7 +126,7 @@ export async function importOpportunities(_prev: ImportResult, formData: FormDat
 
   return {
     mode,
-    fileName: file.name,
+    fileName,
     total,
     ready: fresh.map((r) => ({ row: r.row, label: r.label })),
     duplicates,
