@@ -66,7 +66,7 @@ export default async function MyDayPage() {
   const instName = new Map((insts ?? []).map((i) => [i.id, i.name]));
   const people = new Map([[me.id, "Yo"]]);
   const where = (a: ActivityRow) =>
-    a.institution_id ? <> · <Link href={a.opportunity_id ? `/oportunidades/${a.opportunity_id}` : `/instituciones/${a.institution_id}`} className="underline">{instName.get(a.institution_id)}</Link></> : null;
+    a.institution_id ? <Link href={a.opportunity_id ? `/oportunidades/${a.opportunity_id}` : `/instituciones/${a.institution_id}`} className="underline">{instName.get(a.institution_id)}</Link> : null;
   const idle = idleOpps.data ?? [];
   const late = lateOpps.data ?? [];
   const nothing = !reminders.length && !overdue.length && !todays.length && !idle.length && !late.length && !prospects.length && !upcoming.length && !undated.length && !completed.length;
