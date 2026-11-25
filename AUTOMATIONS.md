@@ -23,3 +23,10 @@ Evento → condiciones → acciones. Debe soportar habilitar/deshabilitar, prior
 - Límites por canal.
 - Aprobación humana para mensajes externos en MVP.
 - Simulación/preview antes de activar reglas.
+
+## Automatizaciones por producto y etapa (implementado)
+En Administración › Reglas y automatizaciones, el administrador (permiso `admin.structure`) da de alta, edita, apaga o elimina reglas:
+- **Disparo:** la oportunidad entra a la etapa elegida (al crearse en ella o al moverla). La etapa define el producto, porque cada producto tiene su pipeline.
+- **Acción:** programar una tarea interna (tipo, asunto y vencimiento en días) para el dueño de la oportunidad. Nunca envía mensajes.
+- **Idempotencia:** no se crea otra tarea de la misma regla mientras la anterior siga pendiente. Las importaciones históricas no disparan reglas.
+- Tabla `stage_automation_rules` con RLS y auditoría (migración 20261225000000).

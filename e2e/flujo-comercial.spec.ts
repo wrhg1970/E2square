@@ -82,9 +82,12 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   await page.getByRole("button", { name: "Crear oportunidad" }).click();
   await expect(page.getByRole("heading", { name: `IHS ${stamp}` })).toBeVisible();
 
-  await page.getByText(/Agregar producto/).click();
   await expect(page.getByRole("heading", { name: "Resumen y riesgos (IA)" })).toBeVisible();
   await expect(page.getByText("Pendiente: el administrador debe configurar la IA.")).toBeVisible();
+  // Sin productos, la barra de etapas dice qué falta para avanzar.
+  await expect(page.getByText(/Para pasar a .+ falta: productos con monto/)).toBeVisible();
+  const tabsNav = page.getByRole("navigation", { name: "Secciones de la ficha" });
+  await tabsNav.getByRole("link", { name: /^Productos/ }).click();
   await page.getByLabel("Producto", { exact: true }).selectOption({ label: "IHS" });
   await page.getByLabel("Cantidad").fill("10");
   await page.getByLabel("Precio unitario").fill("100");
@@ -92,14 +95,15 @@ test("vende de punta a punta y lo ve en el dashboard", async ({ page }) => {
   await page.getByRole("button", { name: "Agregar", exact: true }).click();
   await expect(page.getByText(/1,000/).first()).toBeVisible();
 
+  await page.getByRole("link", { name: "Actividad", exact: true }).click();
   await page.getByLabel("Asunto").fill("Presentación a dirección");
   await page.getByLabel("Fecha y hora").fill("2030-01-15T10:00");
   await page.getByRole("button", { name: "Guardar actividad" }).click();
   await expect(page.getByText("Presentación a dirección")).toBeVisible();
 
-  await page.getByLabel("Etapa").first().selectOption({ label: "Ganada" });
-  await page.getByRole("button", { name: "Mover" }).first().click();
-  await expect(page.getByText("Ganada").first()).toBeVisible();
+  await page.getByRole("button", { name: "Ganada" }).click();
+  await expect(page.getByText("Etapa actualizada.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ganada" })).toHaveAttribute("aria-current", "step");
 
   expect(await wonCount(page)).toBe(wonBefore + 1);
   await expect(page.getByText(/Conversión por etapa/)).toBeVisible();
@@ -419,6 +423,7 @@ test("configura bono, escalones y cobranza de comisiones", async ({ page }) => {
   await expect(page.getByText(/\$500(\.00)? al responsable/)).toBeVisible();
   // La venta ganada del flujo espera el pago del cliente antes de pagar comisiones.
   await page.getByRole("row").filter({ hasText: `IHS ${stamp}` }).getByRole("link").first().click();
+  await page.getByRole("navigation", { name: "Secciones de la ficha" }).getByRole("link", { name: "Comisión" }).click();
   await expect(page.getByRole("heading", { name: "Comisión" })).toBeVisible();
   await expect(page.getByText("El cliente aún no ha pagado.")).toBeVisible();
 });

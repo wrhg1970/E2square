@@ -6,7 +6,7 @@ import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
 import { CURRENCIES } from "@/modules/catalog/labels";
 import { scoreWeightsSchema } from "@/modules/institutions/scoring";
-import { automationSchema, businessUnitSchema, companySchema, exchangeRateSchema, invitationSchema, officeSchema, teamMemberSchema, teamSchema } from "./schemas";
+import { automationSchema, stageAutomationSchema, businessUnitSchema, companySchema, exchangeRateSchema, invitationSchema, officeSchema, teamMemberSchema, teamSchema } from "./schemas";
 
 // La autorización real la aplica RLS en la base; aquí solo validamos y traducimos errores.
 async function insertInto(table: string, schema: z.ZodType, formData: FormData, success: string): Promise<ActionState> {
@@ -82,6 +82,28 @@ export async function saveAutomation(_prev: ActionState, formData: FormData): Pr
   if (error) return { error: dbErrorMessage(error) };
   revalidatePath("/administracion");
   return { success: parsed.data.enabled ? "Regla activada." : "Regla desactivada." };
+}
+
+export async function saveStageAutomation(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = stageAutomationSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { id, ...rule } = parsed.data;
+  const supabase = await createClient();
+  const { data: orgId } = await supabase.rpc("current_org_id");
+  if (!orgId) return { error: "Tu sesión expiró. Vuelve a iniciar sesión." };
+  const { data, error } = id
+    ? await supabase.from("stage_automation_rules").update(rule).eq("id", id).select("id")
+    : await supabase.from("stage_automation_rules").insert({ ...rule, organization_id: orgId }).select("id");
+  if (error) return { error: dbErrorMessage(error) };
+  if (!data?.length) return { error: "No tienes permiso para cambiar automatizaciones." };
+  revalidatePath("/administracion");
+  return { success: id ? "Automatización guardada." : "Automatización creada." };
+}
+
+export async function deleteStageAutomation(formData: FormData) {
+  const supabase = await createClient();
+  await supabase.from("stage_automation_rules").delete().eq("id", String(formData.get("id")));
+  revalidatePath("/administracion");
 }
 
 export async function addExchangeRate(_prev: ActionState, formData: FormData) {
