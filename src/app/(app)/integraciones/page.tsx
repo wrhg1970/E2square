@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ActionForm } from "@/components/ui/action-form";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/modules/activities/time";
-import { disconnectGoogle, syncGmail } from "@/modules/google/actions";
+import { createCronKey, disconnectGoogle, syncGmail } from "@/modules/google/actions";
 import { googleEnv } from "@/modules/google/config";
 import { buttonVariants } from "@/components/ui/button";
 import { aiEnv, DEFAULT_MODELS, providerLabel } from "@/modules/ai/config";
@@ -33,6 +33,7 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
     headers(),
     supabase.from("whatsapp_templates").select("id, name, language, body_preview").order("name"),
   ]);
+  const { data: cronKeyAt } = canAdmin ? await supabase.rpc("cron_key_created_at") : { data: null };
   const webhookUrl = `https://${h.get("host")}/api/whatsapp/webhook`;
   const [{ data: me }, { data: mails }] = await Promise.all([
     supabase.from("profiles").select("timezone").eq("id", meId).maybeSingle(),
@@ -85,6 +86,21 @@ export default async function IntegrationsPage({ searchParams }: PageProps<"/int
           <a href="/api/google/connect" className={buttonVariants()}>
             Conectar mi cuenta de Google
           </a>
+        )}
+        {google && (
+          <p className="text-sm text-muted-foreground">
+            Cada noche (3:00 a. m., hora de la Ciudad de México) se sincronizan solos los correos de todas las cuentas conectadas.
+            {!cronKeyAt && " Pendiente: el administrador debe generar la clave de tareas nocturnas."}
+          </p>
+        )}
+        {google && canAdmin && (
+          <Reveal label={cronKeyAt ? "Cambiar la clave de tareas nocturnas" : "Generar la clave de tareas nocturnas"} variant="outline">
+            <p className="text-sm text-muted-foreground">
+              {cronKeyAt ? `Clave actual creada el ${formatDateTime(cronKeyAt, tz)}. ` : ""}
+              Genera la clave y pégala en Vercel › Settings › Environment Variables como <code className="rounded bg-muted px-1">CRON_SECRET</code> (Production).
+            </p>
+            <ActionForm action={createCronKey} submitLabel="Generar clave" className="mt-3">{null}</ActionForm>
+          </Reveal>
         )}
       </section>
 

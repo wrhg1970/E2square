@@ -85,6 +85,7 @@ App OAuth **interna** del Workspace (sirve para todos los dominios de la misma o
 5. En Vercel (Settings → Environment Variables) y en `.env.local`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_TOKEN_KEY`. La llave se genera en PowerShell con:
    `$b = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`
 6. Redeploy en Vercel. Cada usuario conecta su cuenta en **Integraciones**.
+7. Sincronización nocturna (3:00 a. m. hora de CDMX, definida en `vercel.json`): un administrador entra a **Integraciones → Generar la clave de tareas nocturnas**, la copia y la guarda en Vercel como `CRON_SECRET` (Production). Después, redeploy. Vercel la manda a `/api/cron/gmail`. La base solo guarda su hash y procesa a cada usuario con sus propios permisos. No hace falta la llave service_role.
 
 Se guarda solo remitente, destinatarios, asunto, fecha y extracto de los correos con contactos del CRM. El refresh token se cifra con AES-256-GCM antes de llegar a la base, y nadie (ni el admin) lee la conexión de otro usuario.
 

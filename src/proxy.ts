@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 
-const PUBLIC_PATHS = ["/login", "/recuperar", "/auth/callback", "/api/whatsapp/webhook"];
+const PUBLIC_PATHS = ["/login", "/recuperar", "/auth/callback", "/api/whatsapp/webhook", "/api/cron/"];
 
 // Refresca la sesión en cada request y envía a /login a quien no la tenga.
 export async function proxy(request: NextRequest) {
