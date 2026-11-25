@@ -1,11 +1,14 @@
+import { CalendarCheck, Check, ClipboardList, FileText, Mail, MapPin, MessageCircle, Phone, Presentation, RotateCw, User, Users, Video, X, type LucideIcon } from "lucide-react";
 import { ActionForm } from "@/components/ui/action-form";
+import { buttonVariants } from "@/components/ui/button";
+import { Pill } from "@/components/ui/pill";
 import { Field, SelectField, TextareaField } from "@/components/ui/field";
 import { addActivityToCalendar } from "@/modules/google/actions";
 import { googleEnv } from "@/modules/google/config";
 import { toOptions } from "@/modules/institutions/labels";
 import { cancelActivity, completeActivity, createActivity } from "./actions";
 import { activityTypes, priorities } from "./labels";
-import { formatDateTime } from "./time";
+import { addDays, dayIn, formatDateTime } from "./time";
 
 export type ActivityRow = {
   id: string; activity_type: string; subject: string; status: string; due_at: string | null; completed_at: string | null;
@@ -15,51 +18,96 @@ export type ActivityRow = {
 
 export const ACTIVITY_COLUMNS = "id, activity_type, subject, status, due_at, completed_at, outcome, notes, priority, owner_id, institution_id, opportunity_id, google_event_id, reminder_at";
 
+const typeIcon: Record<string, LucideIcon> = {
+  call: Phone, email: Mail, whatsapp: MessageCircle, visit: MapPin, meeting: Users, video_call: Video,
+  presentation: Presentation, proposal: FileText, follow_up: RotateCw, internal_task: ClipboardList,
+};
+const summaryBtn = (variant: "outline" | "ghost") =>
+  `${buttonVariants({ variant, size: "sm" })} cursor-pointer list-none [&::-webkit-details-marker]:hidden`;
+// Sin nombre en el perfil se muestra el usuario del correo, no la dirección completa.
+const shortName = (label?: string) => (label?.includes("@") ? label.split("@")[0] : label);
+
 // Formulario para cerrar una actividad, con la opción de programar la siguiente.
 export function CompleteForm({ id }: { id: string }) {
   return (
-    <details>
-      <summary className="cursor-pointer text-xs underline">Completar</summary>
-      <ActionForm action={completeActivity.bind(null, id)} submitLabel="Completar" className="mt-2 grid gap-2 sm:grid-cols-3 sm:items-end">
-        <Field label="Resultado" name="outcome" className="sm:col-span-3" />
-        <Field label="Siguiente actividad" name="next_subject" placeholder="Enviar propuesta" />
-        <SelectField label="Tipo" name="next_type" options={toOptions(activityTypes)} defaultValue="follow_up" />
-        <Field label="Fecha y hora" name="next_due_local" type="datetime-local" />
+    <details className="group/complete open:basis-full">
+      <summary className={`${summaryBtn("outline")} group-open/complete:bg-muted`}><Check className="size-4 text-primary" aria-hidden />Completar</summary>
+      <ActionForm action={completeActivity.bind(null, id)} submitLabel="Marcar como hecha" className="mt-3 grid gap-3 rounded-lg border border-border bg-muted/40 p-3">
+        <Field label="¿Cómo te fue? (resultado)" name="outcome" placeholder="Pidió propuesta para enero" />
+        <fieldset className="min-w-0">
+          <legend className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Siguiente paso · opcional</legend>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)] sm:items-end">
+            <Field label="Qué sigue" name="next_subject" placeholder="Enviar propuesta" />
+            <SelectField label="Tipo" name="next_type" options={toOptions(activityTypes)} defaultValue="follow_up" />
+            <Field label="Cuándo" name="next_due_local" type="datetime-local" />
+          </div>
+        </fieldset>
       </ActionForm>
     </details>
   );
 }
 
-export function ActivityItem({ a, timeZone, people, canAct, context }: { a: ActivityRow; timeZone: string; people: Map<string, string>; canAct: boolean; context?: React.ReactNode }) {
-  const overdue = a.status === "pending" && a.due_at && new Date(a.due_at) < new Date();
+// Cancelar pide confirmación sin JavaScript: el botón real queda detrás de un segundo clic.
+function CancelButton({ id }: { id: string }) {
   return (
-    <li className="space-y-1 py-3 text-sm first:pt-0">
-      <p className="flex flex-wrap items-center gap-2">
-        <span className="rounded border border-border px-1.5 py-0.5 text-xs">{activityTypes[a.activity_type as keyof typeof activityTypes]}</span>
-        <span className={a.status === "cancelled" ? "line-through" : "font-medium"}>{a.subject}</span>
-        {a.priority === "high" && a.status === "pending" && <span className="text-xs font-medium text-red-700">Prioridad alta</span>}
-      </p>
-      <p className={overdue ? "font-medium text-red-700" : "text-muted-foreground"}>
-        {a.status === "done" && a.completed_at ? `Hecha ${formatDateTime(a.completed_at, timeZone)}` : a.due_at ? `${overdue ? "Vencida: " : ""}${formatDateTime(a.due_at, timeZone)}` : "Sin fecha"}
-        {` · ${people.get(a.owner_id) ?? ""}`}
-        {context}
-      </p>
-      {a.outcome && <p>Resultado: {a.outcome}</p>}
-      {a.notes && <p className="whitespace-pre-line text-muted-foreground">{a.notes}</p>}
-      {a.google_event_id && <p className="text-xs text-muted-foreground">En Google Calendar</p>}
-      {canAct && a.status === "pending" && (
-        <div className="flex flex-wrap items-start gap-4">
-          <CompleteForm id={a.id} />
-          <form action={cancelActivity.bind(null, a.id)}>
-            <button type="submit" className="text-xs text-muted-foreground underline">Cancelar</button>
-          </form>
-          {a.due_at && !a.google_event_id && googleEnv() && (
-            <ActionForm action={addActivityToCalendar.bind(null, a.id)} submitLabel="Agregar a Google Calendar" className="text-xs">
-              {null}
-            </ActionForm>
-          )}
-        </div>
-      )}
+    <details className="group/cancel">
+      <summary className={`${summaryBtn("ghost")} text-muted-foreground`}><X className="size-4" aria-hidden />Cancelar</summary>
+      <form action={cancelActivity.bind(null, id)} className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+        <span>¿Cancelar esta actividad?</span>
+        <button type="submit" className={`${buttonVariants({ variant: "outline", size: "sm" })} border-red-200 text-red-700 hover:bg-red-50`}>Sí, cancelar</button>
+      </form>
+    </details>
+  );
+}
+
+function When({ a, timeZone }: { a: ActivityRow; timeZone: string }) {
+  if (a.status === "done") return <Pill tone="teal">Hecha{a.completed_at ? ` · ${formatDateTime(a.completed_at, timeZone)}` : ""}</Pill>;
+  if (a.status === "cancelled") return <Pill>Cancelada</Pill>;
+  if (!a.due_at) return <Pill>Sin fecha</Pill>;
+  const due = new Date(a.due_at);
+  const today = dayIn(new Date(), timeZone);
+  const day = dayIn(due, timeZone);
+  const time = new Intl.DateTimeFormat("es-MX", { timeZone, hour: "2-digit", minute: "2-digit" }).format(due);
+  if (due < new Date() && day <= today) return <Pill tone="red">Vencida · {formatDateTime(a.due_at, timeZone)}</Pill>;
+  if (day === today) return <Pill tone="amber">Hoy · {time}</Pill>;
+  if (day === addDays(today, 1)) return <Pill tone="sky">Mañana · {time}</Pill>;
+  return <Pill tone="slate">{formatDateTime(a.due_at, timeZone)}</Pill>;
+}
+
+export function ActivityItem({ a, timeZone, people, canAct, context }: { a: ActivityRow; timeZone: string; people: Map<string, string>; canAct: boolean; context?: React.ReactNode }) {
+  const Icon = typeIcon[a.activity_type] ?? ClipboardList;
+  const owner = shortName(people.get(a.owner_id));
+  return (
+    <li className="flex gap-3 py-4 text-sm first:pt-0 last:pb-0">
+      <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${a.status === "pending" ? "bg-primary/15 text-teal-800" : "bg-muted text-muted-foreground"}`}>
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className={a.status === "cancelled" ? "text-muted-foreground line-through" : "font-semibold"}>{a.subject}</span>
+          <span className="text-xs text-muted-foreground">{activityTypes[a.activity_type as keyof typeof activityTypes]}</span>
+          {a.priority === "high" && a.status === "pending" && <Pill tone="red">Prioridad alta</Pill>}
+        </p>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
+          <When a={a} timeZone={timeZone} />
+          {owner && <span className="inline-flex items-center gap-1"><User className="size-3.5" aria-hidden />{owner}</span>}
+          {a.google_event_id && <span className="inline-flex items-center gap-1 text-xs"><CalendarCheck className="size-3.5 text-primary" aria-hidden />En Google Calendar</span>}
+          {context && <span>{context}</span>}
+        </p>
+        {a.outcome && <p><span className="text-muted-foreground">Resultado:</span> {a.outcome}</p>}
+        {a.notes && <p className="whitespace-pre-line text-muted-foreground">{a.notes}</p>}
+        {canAct && a.status === "pending" && (
+          <div className="flex flex-wrap items-start gap-2 pt-1">
+            <CompleteForm id={a.id} />
+            <CancelButton id={a.id} />
+            {a.due_at && !a.google_event_id && googleEnv() && (
+              <ActionForm action={addActivityToCalendar.bind(null, a.id)} submitLabel="Agregar a Google Calendar" submitVariant="outline" className="text-xs">
+                {null}
+              </ActionForm>
+            )}
+          </div>
+        )}
+      </div>
     </li>
   );
 }
