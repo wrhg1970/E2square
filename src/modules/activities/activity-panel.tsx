@@ -75,38 +75,9 @@ function When({ a, timeZone }: { a: ActivityRow; timeZone: string }) {
 }
 
 export function ActivityItem({ a, timeZone, people, canAct, context }: { a: ActivityRow; timeZone: string; people: Map<string, string>; canAct: boolean; context?: React.ReactNode }) {
-  const overdue = a.status === "pending" && a.due_at && new Date(a.due_at) < new Date();
-  const assignedBy = a.created_by && a.created_by !== a.owner_id ? people.get(a.created_by) : undefined;
-  return (
-    <li className="space-y-1 py-3 text-sm first:pt-0">
-      <p className="flex flex-wrap items-center gap-2">
-        <span className="rounded border border-border px-1.5 py-0.5 text-xs">{activityTypes[a.activity_type as keyof typeof activityTypes]}</span>
-        <span className={a.status === "cancelled" ? "line-through" : "font-medium"}>{a.subject}</span>
-        {a.priority === "high" && a.status === "pending" && <span className="text-xs font-medium text-red-700">Prioridad alta</span>}
-      </p>
-      <p className={overdue ? "font-medium text-red-700" : "text-muted-foreground"}>
-        {a.status === "done" && a.completed_at ? `Hecha ${formatDateTime(a.completed_at, timeZone)}` : a.due_at ? `${overdue ? "Vencida: " : ""}${formatDateTime(a.due_at, timeZone)}` : "Sin fecha"}
-        {assignedBy ? ` · Responsable: ${people.get(a.owner_id) ?? "—"} · Asignó: ${assignedBy}` : ` · ${people.get(a.owner_id) ?? ""}`}
-        {context}
-      </p>
-      {a.outcome && <p>Resultado: {a.outcome}</p>}
-      {a.notes && <p className="whitespace-pre-line text-muted-foreground">{a.notes}</p>}
-      {a.google_event_id && <p className="text-xs text-muted-foreground">En Google Calendar</p>}
-      {canAct && a.status === "pending" && (
-        <div className="flex flex-wrap items-start gap-4">
-          <CompleteForm id={a.id} />
-          <form action={cancelActivity.bind(null, a.id)}>
-            <button type="submit" className="text-xs text-muted-foreground underline">Cancelar</button>
-          </form>
-          {a.due_at && !a.google_event_id && googleEnv() && (
-            <ActionForm action={addActivityToCalendar.bind(null, a.id)} submitLabel="Agregar a Google Calendar" className="text-xs">
-              {null}
-            </ActionForm>
-          )}
-        </div>
-      )}
   const Icon = typeIcon[a.activity_type] ?? ClipboardList;
   const owner = shortName(people.get(a.owner_id));
+  const assignedBy = a.created_by && a.created_by !== a.owner_id ? shortName(people.get(a.created_by)) : undefined;
   return (
     <li className="flex gap-3 py-4 text-sm first:pt-0 last:pb-0">
       <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${a.status === "pending" ? "bg-primary/15 text-teal-800" : "bg-muted text-muted-foreground"}`}>
@@ -120,7 +91,8 @@ export function ActivityItem({ a, timeZone, people, canAct, context }: { a: Acti
         </p>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
           <When a={a} timeZone={timeZone} />
-          {owner && <span className="inline-flex items-center gap-1"><User className="size-3.5" aria-hidden />{owner}</span>}
+          {owner && <span className="inline-flex items-center gap-1"><User className="size-3.5" aria-hidden />{assignedBy ? `Responsable: ${owner}` : owner}</span>}
+          {assignedBy && <span>Asignó: {assignedBy}</span>}
           {a.google_event_id && <span className="inline-flex items-center gap-1 text-xs"><CalendarCheck className="size-3.5 text-primary" aria-hidden />En Google Calendar</span>}
           {context && <span>{context}</span>}
         </p>

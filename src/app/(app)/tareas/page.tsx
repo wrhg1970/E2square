@@ -76,7 +76,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tareas">) 
             {list.rows.map((a) => (
               <ActivityItem key={a.id} a={a} timeZone={tz} people={people}
                 canAct={Boolean(canWrite) || a.owner_id === me.id}
-                context={a.institution_id ? <> · <Link href={a.opportunity_id ? `/oportunidades/${a.opportunity_id}` : `/instituciones/${a.institution_id}`} className="underline">{instName.get(a.institution_id) ?? "Institución"}</Link></> : null} />
+                context={a.institution_id ? <Link href={a.opportunity_id ? `/oportunidades/${a.opportunity_id}` : `/instituciones/${a.institution_id}`} className="underline">{instName.get(a.institution_id) ?? "Institución"}</Link> : null} />
             ))}
           </ul>
         </section>
