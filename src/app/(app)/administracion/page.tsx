@@ -5,10 +5,11 @@ import { ComboField } from "@/components/ui/combo-field";
 import { Field, SelectField } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/server";
 import { scoreFactors } from "@/modules/institutions/scoring";
-import { addExchangeRate, saveAutomation, updateScoreWeights, createBusinessUnit, createCompany, createInvitation, createOffice, createTeam, removeTeamMember, setTeamMember, updateOrgSettings } from "@/modules/admin/actions";
+import { addExchangeRate, deleteStageAutomation, saveAutomation, saveStageAutomation, updateScoreWeights, createBusinessUnit, createCompany, createInvitation, createOffice, createTeam, removeTeamMember, setTeamMember, updateOrgSettings } from "@/modules/admin/actions";
 import { automationRules } from "@/modules/admin/schemas";
 import { CURRENCIES } from "@/modules/catalog/labels";
 import { formatDateTime, formatDay } from "@/modules/activities/time";
+import { activityTypes } from "@/modules/activities/labels";
 import { googleEnv } from "@/modules/google/config";
 import { whatsappEnv } from "@/modules/whatsapp/config";
 import { aiEnv, providerLabel } from "@/modules/ai/config";
@@ -69,7 +70,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/administra
   const sp = await searchParams;
   const tab = typeof sp.seccion === "string" && sp.seccion in tabs ? (sp.seccion as keyof typeof tabs) : "usuarios";
   const supabase = await createClient();
-  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org, rates, automations, teams, teamMembers] = await Promise.all([
+  const [companies, units, offices, profiles, roles, profileRoles, invitations, canStructure, canUsers, org, rates, automations, teams, teamMembers, stageRules, stages, pipelines, products] = await Promise.all([
     supabase.from("companies").select("id, legal_name, tax_id, country_code, status").order("legal_name"),
     supabase.from("business_units").select("id, name, company_id").order("name"),
     supabase.from("offices").select("id, name, company_id, business_unit_id, country_code, timezone").order("name"),
@@ -84,6 +85,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/administra
     supabase.from("automation_rules").select("key, enabled, days"),
     supabase.from("teams").select("id, name, leader_id").order("name"),
     supabase.from("team_members").select("team_id, profile_id"),
+    supabase.from("stage_automation_rules").select("id, stage_id, activity_type, subject, days, enabled").order("created_at"),
+    supabase.from("pipeline_stages").select("id, name, pipeline_id, sort_order").order("sort_order"),
+    supabase.from("pipelines").select("id, name, product_id, active"),
+    supabase.from("products").select("id, name"),
   ]);
   const [{ data: meId }, status] = canStructure.data
     ? await Promise.all([supabase.rpc("current_profile_id"), supabase.rpc("integration_status")])
@@ -105,6 +110,32 @@ export default async function AdminPage({ searchParams }: PageProps<"/administra
   const personOptions = (profiles.data ?? []).filter((p) => p.status === "active").map((p) => ({ value: p.id, label: p.full_name || p.email }));
   const companyOptions = [{ value: "", label: "Elige una empresa" }, ...(companies.data ?? []).map((c) => ({ value: c.id, label: c.legal_name }))];
   const roleOptions = [{ value: "", label: "Elige un rol" }, ...(roles.data ?? []).map((r) => ({ value: r.id, label: r.name }))];
+
+  // Cada producto tiene su pipeline: "Producto · Etapa" identifica la etapa sin ambigüedad.
+  const productName = new Map((products.data ?? []).map((p) => [p.id, p.name]));
+  const pipelineLabel = new Map((pipelines.data ?? []).map((p) => [p.id, (p.product_id && productName.get(p.product_id)) || p.name]));
+  const activePipelines = new Set((pipelines.data ?? []).filter((p) => p.active).map((p) => p.id));
+  const stageLabel = new Map((stages.data ?? []).map((st) => [st.id, `${pipelineLabel.get(st.pipeline_id) ?? "Pipeline"} · ${st.name}`]));
+  const stageOptions = [
+    { value: "", label: "Elige producto y etapa" },
+    ...(stages.data ?? [])
+      .filter((st) => activePipelines.has(st.pipeline_id))
+      .map((st) => ({ value: st.id, label: stageLabel.get(st.id) ?? st.name, group: pipelineLabel.get(st.pipeline_id) ?? "Pipeline" }))
+      .sort((a, b) => a.group.localeCompare(b.group, "es")),
+  ];
+  const typeOptions = Object.entries(activityTypes).map(([value, label]) => ({ value, label }));
+  const stageRuleFields = (r?: NonNullable<typeof stageRules.data>[number]) => (
+    <>
+      <input type="hidden" name="id" value={r?.id ?? ""} />
+      <SelectField label="Cuando la oportunidad entra a" name="stage_id" required defaultValue={r?.stage_id ?? ""} options={stageOptions} />
+      <SelectField label="Crear tarea de tipo" name="activity_type" defaultValue={r?.activity_type ?? "follow_up"} options={typeOptions} />
+      <Field label="Asunto" name="subject" required maxLength={120} defaultValue={r?.subject ?? ""} placeholder="Ej. Seguimiento a la propuesta" />
+      <Field label="Vence en (días)" name="days" type="number" min="0" max="90" required defaultValue={r?.days ?? 1} />
+      <label className="flex h-9 items-center gap-2 self-end text-sm">
+        <input type="checkbox" name="enabled" defaultChecked={r?.enabled ?? true} /> Activa
+      </label>
+    </>
+  );
 
   const activeUsers = (profiles.data ?? []).filter((p) => p.status === "active").length;
   const pendingInvites = (invitations.data ?? []).filter((i) => !i.accepted_at).length;
@@ -211,6 +242,44 @@ export default async function AdminPage({ searchParams }: PageProps<"/administra
                 );
               })}
             </ul>
+          </Section>
+
+          <Section title="Automatizaciones por producto y etapa" hint="Cuando una oportunidad entra a la etapa elegida (al crearse o al moverla), se programa una tarea para su dueño con el asunto y el nombre de la oportunidad. No se duplica mientras siga pendiente.">
+            <Reveal label="Nueva automatización">
+              <ActionForm action={saveStageAutomation} submitLabel="Crear automatización" className="space-y-4">
+                <FormBlock title="Nueva automatización" cols={3}>{stageRuleFields()}</FormBlock>
+              </ActionForm>
+            </Reveal>
+            {(stageRules.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aún no hay automatizaciones por etapa. Crea la primera con “Nueva automatización”: por ejemplo, un seguimiento a 3 días cuando un TOEFL pasa a Propuesta.
+              </p>
+            ) : (
+              <ul className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+                {(stageRules.data ?? []).map((r) => (
+                  <li key={r.id} className="border-t border-border first:border-t-0">
+                    <details>
+                      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm hover:bg-[#f8fafc] [&::-webkit-details-marker]:hidden">
+                        <span className="min-w-0 flex-1">
+                          <span className="font-semibold">{stageLabel.get(r.stage_id) ?? "Etapa eliminada"}</span>{" "}
+                          <span className="text-muted-foreground">· {activityTypes[r.activity_type as keyof typeof activityTypes] ?? r.activity_type}: {r.subject}</span>
+                        </span>
+                        {r.enabled ? <Pill tone="teal">Activa · vence en {r.days} {r.days === 1 ? "día" : "días"}</Pill> : <Pill>Apagada</Pill>}
+                      </summary>
+                      <div className="space-y-3 border-t border-dashed border-border bg-[#f8fafc] px-4 py-3">
+                          <ActionForm action={saveStageAutomation} submitLabel="Guardar" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:items-end">
+                            {stageRuleFields(r)}
+                          </ActionForm>
+                          <form action={deleteStageAutomation}>
+                            <input type="hidden" name="id" value={r.id} />
+                            <button type="submit" className="text-sm text-red-700 underline">Eliminar automatización</button>
+                          </form>
+                        </div>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Section>
         </div>
       )}

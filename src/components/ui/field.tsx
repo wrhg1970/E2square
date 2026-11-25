@@ -18,17 +18,20 @@ export function SelectField({
   options,
   className,
   ...props
-}: ComponentProps<"select"> & { label: string; options: { value: string; label: string }[] }) {
+}: ComponentProps<"select"> & { label: string; options: { value: string; label: string; group?: string }[] }) {
+  // Con `group`, las opciones se agrupan (optgroup) en el orden en que llegan.
+  const groups = [...new Set(options.map((o) => o.group))];
+  const render = (list: typeof options) => list.map((o) => <option key={o.value} value={o.value}>{o.label}</option>);
   return (
     <label className={cn("flex flex-col gap-1 text-sm", className)}>
       <span className="font-medium">{label}</span>
       {/* aria-label: sin esto el nombre accesible incluye el texto de la opción elegida. */}
       <select aria-label={label} className={control} {...props}>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
+        {groups.map((g) =>
+          g === undefined ? render(options.filter((o) => o.group === undefined)) : (
+            <optgroup key={g} label={g}>{render(options.filter((o) => o.group === g))}</optgroup>
+          ),
+        )}
       </select>
     </label>
   );

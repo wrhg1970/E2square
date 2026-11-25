@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CURRENCIES } from "@/modules/catalog/labels";
+import { activityTypes } from "@/modules/activities/labels";
 
 const name = z.string().trim().min(2, "El nombre es muy corto").max(200);
 const countryCode = z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Usa el código de país de 2 letras (MX, CO, US…)");
@@ -56,4 +57,14 @@ export const automationSchema = z.object({
   key: z.enum(Object.keys(automationRules) as [keyof typeof automationRules]),
   enabled: z.preprocess((v) => v === "on", z.boolean()),
   days: z.coerce.number().int("Usa días completos").min(0, "Mínimo 0 días").max(90, "Máximo 90 días"),
+});
+
+// Automatizaciones que da de alta el administrador: al entrar a una etapa (de un producto) se programa una tarea.
+export const stageAutomationSchema = z.object({
+  id: z.preprocess((v) => (v === "" ? undefined : v), z.uuid().optional()),
+  stage_id: z.uuid("Elige el producto y la etapa"),
+  activity_type: z.enum(Object.keys(activityTypes) as [keyof typeof activityTypes], "Elige el tipo de tarea"),
+  subject: z.string().trim().min(2, "Escribe el asunto de la tarea").max(120, "Máximo 120 caracteres"),
+  days: z.coerce.number().int("Usa días completos").min(0, "Mínimo 0 días").max(90, "Máximo 90 días"),
+  enabled: z.preprocess((v) => v === "on", z.boolean()),
 });
