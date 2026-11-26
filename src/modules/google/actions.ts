@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { dbErrorMessage, type ActionState } from "@/lib/action-state";
 import { createClient } from "@/lib/supabase/server";
-import { googleClient } from "./api";
+import { fetchCommunications, googleClient } from "./api";
 import { googleEnv } from "./config";
-import { gmailQuery, matchMessage } from "./gmail";
 
 const notConfigured = { error: "La integración con Google aún no está configurada." };
 const failed = (e: unknown) => ({ error: e instanceof Error ? e.message : "No se pudo hablar con Google. Intenta de nuevo." });
@@ -29,13 +28,7 @@ export async function syncGmail(): Promise<ActionState> {
     const byEmail = new Map((contacts.data ?? []).map((c) => [c.email as string, { contact_id: c.id, institution_id: instOf.get(c.id) ?? null }]));
 
     const startedAt = new Date().toISOString();
-    // shortcut: hasta 100 correos por sincronización; repetir el botón trae los siguientes por fecha.
-    const ids = await g.listMessageIds(gmailQuery(g.conn.last_sync_at));
-    const rows = [];
-    for (let i = 0; i < ids.length; i += 10) {
-      const batch = await Promise.all(ids.slice(i, i + 10).map(g.getMessage));
-      rows.push(...batch.flatMap((m) => matchMessage(m, g.conn.google_email, byEmail)));
-    }
+    const { checked, rows } = await fetchCommunications(g, byEmail);
     if (rows.length) {
       const { error } = await supabase.from("communications")
         .upsert(rows.map((r) => ({ ...r, organization_id: orgId, owner_id: me })), { onConflict: "owner_id,external_id,contact_id", ignoreDuplicates: true });
@@ -43,7 +36,7 @@ export async function syncGmail(): Promise<ActionState> {
     }
     await supabase.from("google_connections").update({ last_sync_at: startedAt }).eq("id", g.conn.id);
     revalidatePath("/integraciones");
-    return { success: `Revisé ${ids.length} correos; ${rows.length} con contactos del CRM quedaron registrados.` };
+    return { success: `Revisé ${checked} correos; ${rows.length} con contactos del CRM quedaron registrados.` };
   } catch (e) {
     return failed(e);
   }
@@ -85,4 +78,13 @@ export async function addActivityToCalendar(activityId: string): Promise<ActionS
   } catch (e) {
     return failed(e);
   }
+}
+
+// Clave que Vercel usa (CRON_SECRET) para la sincronización nocturna; se muestra una sola vez.
+export async function createCronKey(): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_cron_key");
+  if (error) return { error: dbErrorMessage(error) };
+  revalidatePath("/integraciones");
+  return { success: `Clave nueva (cópiala ahora, no se vuelve a mostrar): ${data}. Pégala en Vercel como CRON_SECRET y vuelve a desplegar. La anterior deja de funcionar.` };
 }

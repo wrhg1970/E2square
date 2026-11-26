@@ -85,6 +85,7 @@ App OAuth **interna** del Workspace (sirve para todos los dominios de la misma o
 5. En Vercel (Settings → Environment Variables) y en `.env.local`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_TOKEN_KEY`. La llave se genera en PowerShell con:
    `$b = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`
 6. Redeploy en Vercel. Cada usuario conecta su cuenta en **Integraciones**. Quien conectó antes de un permiso nuevo (p. ej. `spreadsheets.readonly` para importar por liga de Google Sheets) debe volver a conectar.
+7. Sincronización nocturna (3:00 a. m. hora de CDMX, definida en `vercel.json`): un administrador entra a **Integraciones → Generar la clave de tareas nocturnas**, la copia y la guarda en Vercel como `CRON_SECRET` (Production). Después, redeploy. Vercel la manda a `/api/cron/gmail`. La base solo guarda su hash y procesa a cada usuario con sus propios permisos. No hace falta la llave service_role.
 
 Importar por liga de Google Sheets (instituciones, oportunidades y prospectos): se lee la pestaña de la liga (`gid`) con la cuenta de Google del usuario; si no la tiene conectada o no tiene acceso, se intenta como hoja pública («Cualquier persona con el vínculo»).
 

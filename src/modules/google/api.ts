@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt } from "./crypto";
 import { GOOGLE_SCOPES, type GoogleEnv } from "./config";
-import type { GmailMessage } from "./gmail";
+import { gmailQuery, matchMessage, type GmailMessage } from "./gmail";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
@@ -31,10 +31,15 @@ class GoogleError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+export type GoogleConnection = { id: string; google_email: string; refresh_token_enc: string; last_sync_at: string | null };
+
 // Cliente con el token de acceso del usuario actual; null si no ha conectado su cuenta.
 export async function googleClient(env: GoogleEnv, supabase: SupabaseClient) {
   const { data: conn } = await supabase.from("google_connections").select("id, google_email, refresh_token_enc, last_sync_at").maybeSingle();
-  if (!conn) return null;
+  return conn ? googleApi(env, conn) : null;
+}
+
+export async function googleApi(env: GoogleEnv, conn: GoogleConnection) {
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     body: new URLSearchParams({ client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET,
@@ -67,4 +72,18 @@ export async function googleClient(env: GoogleEnv, supabase: SupabaseClient) {
     createEvent: (event: Record<string, unknown>) =>
       call<{ id: string; htmlLink: string }>("https://www.googleapis.com/calendar/v3/calendars/primary/events", { method: "POST", body: JSON.stringify(event) }),
   };
+}
+
+type Contacts = Parameters<typeof matchMessage>[2];
+
+// Correos nuevos desde la última sincronización que involucran contactos del CRM.
+// shortcut: hasta 100 correos por corrida; la siguiente trae los demás por fecha.
+export async function fetchCommunications(g: Awaited<ReturnType<typeof googleApi>>, contacts: Contacts) {
+  const ids = await g.listMessageIds(gmailQuery(g.conn.last_sync_at));
+  const rows = [];
+  for (let i = 0; i < ids.length; i += 10) {
+    const batch = await Promise.all(ids.slice(i, i + 10).map(g.getMessage));
+    rows.push(...batch.flatMap((m) => matchMessage(m, g.conn.google_email, contacts)));
+  }
+  return { checked: ids.length, rows };
 }
