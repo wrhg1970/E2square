@@ -1,17 +1,20 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
-import { CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
+import { startTransition, useActionState, useState, type ReactNode } from "react";
+import { CheckCircle2, FileSpreadsheet, Link2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ImportResult } from "./import-action";
 
 const card = "rounded-xl border border-border bg-background p-5 shadow-sm";
 
-// Revisar e importar un Excel. "noun" es lo que se crea ("instituciones", "oportunidades").
+// Revisar e importar un Excel o una hoja de Google Sheets (por liga). "noun" es lo que se crea ("instituciones", "oportunidades").
 // Primero se revisa (no guarda nada) y luego se importa el mismo archivo con un clic.
-export function ImportForm({ action: importAction, noun }: { action: (prev: ImportResult, formData: FormData) => Promise<ImportResult>; noun: string }) {
+// "children" son campos extra que se envían con la revisión y la importación (p. ej. el producto de los prospectos).
+export function ImportForm({ action: importAction, noun, children }: { action: (prev: ImportResult, formData: FormData) => Promise<ImportResult>; noun: string; children?: ReactNode }) {
   const [state, action, pending] = useActionState<ImportResult, FormData>(importAction, null);
   const [fileName, setFileName] = useState("");
+  const [source, setSource] = useState<"file" | "sheet">("file");
+  const [sheetUrl, setSheetUrl] = useState("");
   const result = state && "mode" in state ? state : null;
   const withErrors = result ? new Set(result.errors.map((e) => e.row)).size : 0;
   const canCommit = result?.mode === "preview" && result.ready.length > 0;
@@ -27,7 +30,28 @@ export function ImportForm({ action: importAction, noun }: { action: (prev: Impo
       className="space-y-4"
     >
       <section className={card} aria-labelledby="subir">
-        <h2 id="subir" className="font-semibold">Sube tu archivo</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="subir" className="font-semibold">{source === "file" ? "Sube tu archivo" : "Pega la liga de tu hoja"}</h2>
+          <div role="group" aria-label="De dónde vienen los datos" className="flex gap-1 rounded-lg border border-border bg-background p-1 text-sm shadow-sm">
+            {([["file", "Archivo"], ["sheet", "Google Sheets"]] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={source === value} onClick={() => setSource(value)}
+                className={`rounded-md px-3 py-1.5 ${source === value ? "bg-band font-semibold text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {source === "sheet" ? (
+          <div className="mt-3 space-y-2 text-sm">
+            <label htmlFor="sheet_url" className="flex items-center gap-2 font-medium"><Link2 aria-hidden className="size-4 text-teal-700" /> Liga de Google Sheets</label>
+            <input id="sheet_url" name="sheet_url" type="url" inputMode="url" required value={sheetUrl} onChange={(e) => setSheetUrl(e.currentTarget.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/…/edit#gid=0" aria-describedby="sheet_help"
+              className="h-10 w-full rounded-md border border-border bg-background px-3 shadow-sm placeholder:text-muted-foreground/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" />
+            <p id="sheet_help" className="text-muted-foreground">
+              Abre la pestaña que quieres importar y copia la liga de la barra del navegador. Se lee con tu cuenta de Google conectada en Integraciones, o sin cuenta si la hoja está compartida como «Cualquier persona con el vínculo».
+            </p>
+          </div>
+        ) : (
         <label className="mt-3 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border bg-canvas/60 px-4 py-8 text-center text-sm hover:border-primary focus-within:border-primary">
           {fileName ? <FileSpreadsheet aria-hidden className="size-7 text-teal-700" /> : <Upload aria-hidden className="size-7 text-muted-foreground" />}
           <span className="font-medium">{fileName || "Haz clic para elegir tu Excel"}</span>
@@ -35,9 +59,11 @@ export function ImportForm({ action: importAction, noun }: { action: (prev: Impo
           <input type="file" name="file" aria-label="Archivo de Excel" accept=".xlsx,.csv" required className="sr-only"
             onChange={(e) => setFileName(e.currentTarget.files?.[0]?.name ?? "")} />
         </label>
+        )}
+        {children && <div className="mt-4">{children}</div>}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button type="submit" name="mode" value="preview" variant={canCommit ? "outline" : "default"} disabled={pending}>
-            {pending ? "Procesando…" : result ? "Revisar de nuevo" : "Revisar archivo"}
+            {pending ? "Procesando…" : result ? "Revisar de nuevo" : source === "file" ? "Revisar archivo" : "Revisar hoja"}
           </Button>
           <span className="text-sm text-muted-foreground">La revisión no guarda nada: te dice qué filas están listas y cuáles hay que corregir.</span>
         </div>
@@ -79,7 +105,7 @@ export function ImportForm({ action: importAction, noun }: { action: (prev: Impo
               </span>
             </div>
           ) : (
-            <p className="text-muted-foreground">Ninguna fila está lista todavía. Corrige el archivo con las indicaciones de abajo y vuelve a revisarlo.</p>
+            <p className="text-muted-foreground">Ninguna fila está lista todavía. Corrige el archivo o la hoja con las indicaciones de abajo y vuelve a revisarlo.</p>
           )}
 
           {result.unknownColumns.length > 0 && <p className="text-muted-foreground">Columnas que no reconocimos y se ignoran: {result.unknownColumns.join(", ")}</p>}

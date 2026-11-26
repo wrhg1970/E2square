@@ -76,16 +76,18 @@ Se usa la misma cuenta de Vercel de los otros proyectos (LetsGo, DLX-IHS).
 6. En Supabase > Project Settings > **Data API**, revisa que **Exposed schemas** incluya `public` (y `graphql_public`). Si queda vacío, el API no arranca (log de Postgres: `schema "pg_pgrst_no_exposed_schemas" does not exist`; en la app: error PGRST002 y "Sin acceso todavía" aunque el perfil esté bien).
 7. Correo (recuperar contraseña): el SMTP de fábrica de Supabase solo envía a miembros del equipo de Supabase. Configura SMTP propio en Authentication > Emails > SMTP Settings (Google Workspace: `smtp.gmail.com`, puerto 465, usuario de la cuenta y una contraseña de aplicación) y sube el límite en Authentication > Rate Limits.
 
-## Google Workspace (Gmail y Calendar)
+## Google Workspace (Gmail, Calendar y Sheets)
 App OAuth **interna** del Workspace (sirve para todos los dominios de la misma organización, sin revisión de Google).
 1. https://console.cloud.google.com → nuevo proyecto "E2Square CRM".
-2. APIs y servicios → Biblioteca: habilitar **Gmail API** y **Google Calendar API**.
-3. Google Auth Platform → Branding (nombre y correo de soporte) → Público: **Interno** → Acceso a datos: `openid`, `email`, `gmail.readonly`, `calendar.events`.
+2. APIs y servicios → Biblioteca: habilitar **Gmail API**, **Google Calendar API** y **Google Sheets API**.
+3. Google Auth Platform → Branding (nombre y correo de soporte) → Público: **Interno** → Acceso a datos: `openid`, `email`, `gmail.readonly`, `gmail.send`, `calendar.events`, `spreadsheets.readonly`.
 4. Clientes → Crear cliente → Aplicación web, con URIs de redirección `https://e2square.vercel.app/api/google/callback` y `http://localhost:3000/api/google/callback`.
 5. En Vercel (Settings → Environment Variables) y en `.env.local`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_TOKEN_KEY`. La llave se genera en PowerShell con:
    `$b = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`
-6. Redeploy en Vercel. Cada usuario conecta su cuenta en **Integraciones**.
+6. Redeploy en Vercel. Cada usuario conecta su cuenta en **Integraciones**. Quien conectó antes de un permiso nuevo (p. ej. `spreadsheets.readonly` para importar por liga de Google Sheets) debe volver a conectar.
 7. Sincronización nocturna (3:00 a. m. hora de CDMX, definida en `vercel.json`): un administrador entra a **Integraciones → Generar la clave de tareas nocturnas**, la copia y la guarda en Vercel como `CRON_SECRET` (Production). Después, redeploy. Vercel la manda a `/api/cron/gmail`. La base solo guarda su hash y procesa a cada usuario con sus propios permisos. No hace falta la llave service_role.
+
+Importar por liga de Google Sheets (instituciones, oportunidades y prospectos): se lee la pestaña de la liga (`gid`) con la cuenta de Google del usuario; si no la tiene conectada o no tiene acceso, se intenta como hoja pública («Cualquier persona con el vínculo»).
 
 Se guarda solo remitente, destinatarios, asunto, fecha y extracto de los correos con contactos del CRM. El refresh token se cifra con AES-256-GCM antes de llegar a la base, y nadie (ni el admin) lee la conexión de otro usuario.
 
