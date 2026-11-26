@@ -1,7 +1,7 @@
 -- Pruebas de prospectos (leads de Meta): visibilidad, permisos y que un Lead ID no se repita.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(12);
 
 select public.bootstrap_organization('Org A', 'org-a', 'admin-a@test.dev');
 select public.bootstrap_organization('Org B', 'org-b', 'admin-b@test.dev');
@@ -32,6 +32,20 @@ select throws_ok($$ insert into public.leads (organization_id, full_name, create
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', true);
 select is((select count(*)::int from public.leads), 0, 'otra organización no ve los prospectos');
+
+-- Archivar y borrar (20261228000000).
+delete from public.leads;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+delete from public.leads;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
+select is((select count(*)::int from public.leads), 1, 'ni otra organización ni un vendedor sin alcance pueden borrar');
+update public.leads set archived_at = now();
+select isnt((select archived_at from public.leads), null, 'el admin archiva un prospecto');
+update public.leads set archived_at = null;
+select is((select archived_at from public.leads), null, 'y lo puede sacar del archivo');
+delete from public.leads;
+select is((select count(*)::int from public.leads), 0, 'el admin borra el prospecto');
+select is((select count(*)::int from public.audit_log where table_name = 'leads' and action = 'DELETE'), 1, 'el borrado queda en auditoría');
 
 select * from finish();
 rollback;
